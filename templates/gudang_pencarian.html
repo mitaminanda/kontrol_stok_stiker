@@ -116,12 +116,52 @@
                         Sembunyikan stiker yang stoknya sudah 0 PCS
                     </label>
                 </div>
+
+                <!-- PENCARIAN DENGAN FOTO / KAMERA -->
+                <div class="mt-4 pt-4 border-t border-slate-200">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-bold uppercase text-slate-500 mr-1">Cari dengan foto:</span>
+                        <button type="button" id="btnKamera" onclick="bukaKamera()"
+                                class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid fa-camera"></i> Buka Kamera
+                        </button>
+                        <button type="button" id="btnUpload" onclick="document.getElementById('inputUploadGambar').click()"
+                                class="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold shadow-sm transition">
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i> Upload Gambar
+                        </button>
+                        <input type="file" id="inputKamera" accept="image/*" capture="environment" class="hidden" onchange="prosesFileGambar(this)">
+                        <input type="file" id="inputUploadGambar" accept="image/*" class="hidden" onchange="prosesFileGambar(this)">
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">
+                        <i class="fa-solid fa-circle-info mr-1"></i>Ambil foto stiker dari jarak dekat. Pastikan tulisan / logo terlihat jelas dan tidak blur.
+                    </p>
+
+                    <!-- PANEL STATUS & HASIL PENCARIAN GAMBAR -->
+                    <div id="panelGambar" class="hidden mt-3 p-3 bg-blue-50/70 border border-blue-200 rounded-xl">
+                        <div class="flex items-start gap-3">
+                            <img id="previewGambar" alt="Pratinjau foto"
+                                 class="w-16 h-16 object-cover rounded-lg border border-blue-200 bg-white flex-shrink-0">
+                            <div class="flex-1 min-w-0">
+                                <p id="statusGambar" class="text-xs font-bold text-slate-700">Menunggu gambar...</p>
+                                <div class="w-full h-1.5 bg-blue-100 rounded-full mt-2 overflow-hidden">
+                                    <div id="progressGambar" class="h-full w-0 bg-blue-600 rounded-full transition-all duration-300"></div>
+                                </div>
+                                <p id="infoGambar" class="text-[11px] text-slate-500 mt-1.5"></p>
+                            </div>
+                            <button type="button" onclick="resetPencarianGambar()" title="Tutup hasil gambar"
+                                    class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition flex-shrink-0">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- HASIL KARTU DETAIL STIKER & LOKASI RAK -->
             <div id="containerHasilStiker" class="space-y-4">
                 {% for item in daftar_stiker %}
-                <div class="kartu-stiker bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:border-blue-400 transition"
+                <div class="kartu-stiker relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:border-blue-400 transition"
+                     data-id="{{ item.id }}"
                      data-search="{{ (item.nama_barang or '')|lower }} {{ (item.supplier or '')|lower }} {{ (item.no_qan or '')|lower }} {{ (item.no_sap or '')|lower }} {{ (item.lokasi_rak or '')|lower }}"
                      data-stok="{{ item.sisa_stok_gudang }}">
                     
@@ -224,23 +264,64 @@
         </div>
     </div>
 
+    <!-- MODAL KAMERA -->
+    <div id="modalKamera" class="fixed inset-0 z-[60] bg-black/90 hidden items-center justify-center p-4">
+        <div class="w-full max-w-lg bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+                <p class="text-white text-sm font-bold"><i class="fa-solid fa-camera mr-2"></i>Arahkan kamera ke stiker</p>
+                <button type="button" onclick="tutupKamera()" class="p-1.5 text-slate-400 hover:text-white rounded-lg transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="bg-black aspect-[4/3] flex items-center justify-center">
+                <video id="videoKamera" autoplay playsinline muted class="w-full h-full object-contain"></video>
+            </div>
+            <div class="flex justify-end gap-2 px-4 py-3">
+                <button type="button" onclick="tutupKamera()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-bold transition">Batal</button>
+                <button type="button" onclick="ambilFotoKamera()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition">
+                    <i class="fa-solid fa-camera mr-1"></i>Ambil Foto
+                </button>
+            </div>
+        </div>
+    </div>
+    <canvas id="canvasKamera" class="hidden"></canvas>
+
     <script>
+        // ==========================================
+        // STATE PENCARIAN
+        // ==========================================
+        const containerHasil = document.getElementById('containerHasilStiker');
+        const kartuSemua = Array.from(document.querySelectorAll('.kartu-stiker'));
+        const urutanAsli = new Map(kartuSemua.map((kartu, index) => [kartu, index]));
+
+        let hasilGambar = null;          // Map: id -> {skor, inlier}
+        let streamKamera = null;
+        let prosesGambarBerjalan = false;
+        let urlPreviewGambar = null;
+
+        function skorKartu(kartu) {
+            if (!hasilGambar) return 0;
+            const info = hasilGambar.get(String(kartu.dataset.id));
+            return info ? info.skor : -1;
+        }
+
         function cariStikerRealtime() {
             const keyword = document.getElementById('inputCariStiker').value.toLowerCase().trim();
             const hanyaAdaStok = document.getElementById('chkHanyaAdaStok').checked;
-            const kartuList = document.querySelectorAll('.kartu-stiker');
             const btnClear = document.getElementById('btnClearSearch');
-            
+
             btnClear.classList.toggle('hidden', keyword === '');
 
             let tampil = 0;
-            kartuList.forEach(kartu => {
+            kartuSemua.forEach(kartu => {
                 const teks = kartu.dataset.search;
                 const stok = parseInt(kartu.dataset.stok || '0', 10);
                 const cocokKata = teks.includes(keyword);
                 const cocokStok = !hanyaAdaStok || stok > 0;
+                // Saat mode gambar aktif, hanya kartu hasil pencocokan yang ditampilkan
+                const cocokGambar = !hasilGambar || hasilGambar.has(String(kartu.dataset.id));
 
-                if (cocokKata && cocokStok) {
+                if (cocokKata && cocokStok && cocokGambar) {
                     kartu.classList.remove('hidden');
                     tampil++;
                 } else {
@@ -248,16 +329,278 @@
                 }
             });
 
-            document.getElementById('infoJumlahHasil').innerText = `Ditemukan ${tampil} lokasi stiker yang sesuai`;
+            // Urutkan kartu dari kemiripan tertinggi saat mode gambar aktif
+            if (hasilGambar) {
+                kartuSemua
+                    .filter(kartu => !kartu.classList.contains('hidden'))
+                    .sort((a, b) => skorKartu(b) - skorKartu(a))
+                    .forEach(kartu => containerHasil.appendChild(kartu));
+
+                document.getElementById('infoJumlahHasil').innerText =
+                    `Pencarian gambar: ${tampil} stiker mirip ditampilkan`;
+            } else {
+                document.getElementById('infoJumlahHasil').innerText =
+                    `Ditemukan ${tampil} lokasi stiker yang sesuai`;
+            }
+
             document.getElementById('pesanKosong').classList.toggle('hidden', tampil > 0);
         }
 
         function resetPencarian() {
             document.getElementById('inputCariStiker').value = '';
-            cariStikerRealtime();
+            if (hasilGambar) {
+                resetPencarianGambar();
+            } else {
+                cariStikerRealtime();
+            }
             document.getElementById('inputCariStiker').focus();
         }
 
+        // ==========================================
+        // PENCARIAN DENGAN GAMBAR / KAMERA
+        // ==========================================
+        function pasangBadge(kartu, info) {
+            let badge = kartu.querySelector('.badge-skor');
+            if (!info) {
+                if (badge) badge.remove();
+                return;
+            }
+
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'badge-skor absolute top-3 right-3 z-10 px-2.5 py-1 rounded-lg text-[11px] font-black shadow-md';
+                kartu.appendChild(badge);
+            }
+
+            const persen = Math.round(info.skor * 100);
+            badge.innerHTML = `<i class="fa-solid fa-camera mr-1"></i>${persen}% mirip`;
+            badge.classList.remove('bg-emerald-600', 'bg-amber-500', 'bg-rose-500', 'text-white');
+
+            if (info.skor >= 0.75) {
+                badge.classList.add('bg-emerald-600', 'text-white');
+            } else if (info.skor >= 0.5) {
+                badge.classList.add('bg-amber-500', 'text-white');
+            } else {
+                badge.classList.add('bg-rose-500', 'text-white');
+            }
+        }
+
+        function terapkanHasilGambar(data) {
+            hasilGambar = new Map();
+            (data.hasil || []).forEach(item => hasilGambar.set(String(item.id), item));
+
+            kartuSemua.forEach(kartu => {
+                pasangBadge(kartu, hasilGambar.get(String(kartu.dataset.id)));
+            });
+
+            // Kosongkan kata kunci agar semua hasil gambar langsung terlihat
+            document.getElementById('inputCariStiker').value = '';
+            document.getElementById('btnClearSearch').classList.add('hidden');
+            cariStikerRealtime();
+
+            const panel = document.getElementById('panelGambar');
+            const status = document.getElementById('statusGambar');
+            const info = document.getElementById('infoGambar');
+            const progress = document.getElementById('progressGambar');
+            panel.classList.remove('hidden');
+            progress.classList.remove('animate-pulse');
+            progress.style.width = '100%';
+
+            if (hasilGambar.size > 0) {
+                const terbaik = Math.round((data.terbaik || 0) * 100);
+                status.className = 'text-xs font-bold text-emerald-700';
+                status.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i>Ditemukan ${hasilGambar.size} stiker mirip (kecocokan tertinggi ${terbaik}%)`;
+                info.innerText = 'Kartu diurutkan dari kemiripan tertinggi. Klik "Atur Rak" untuk memperbarui lokasi.';
+            } else {
+                status.className = 'text-xs font-bold text-amber-700';
+                status.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>Tidak ada stiker yang cukup mirip';
+                info.innerText = data.pesan || 'Coba foto ulang dengan pencahayaan lebih terang dan jarak lebih dekat.';
+            }
+
+            const judulKosong = document.getElementById('pesanKosong').querySelector('p.font-bold');
+            if (judulKosong) {
+                judulKosong.innerText = hasilGambar.size > 0 ? 'Stiker tidak ditemukan' : 'Tidak ada stiker yang mirip';
+            }
+        }
+
+        function setTombolGambarAktif(aktif) {
+            ['btnKamera', 'btnUpload'].forEach(id => {
+                const tombol = document.getElementById(id);
+                if (!tombol) return;
+                tombol.disabled = !aktif;
+                tombol.classList.toggle('opacity-50', !aktif);
+                tombol.classList.toggle('cursor-not-allowed', !aktif);
+            });
+        }
+
+        async function kirimGambar(file) {
+            if (prosesGambarBerjalan) return;
+
+            if (!file || !file.type.startsWith('image/')) {
+                alert('File harus berupa gambar (JPG, PNG, WEBP, dll).');
+                return;
+            }
+            if (file.size > 15 * 1024 * 1024) {
+                alert('Ukuran gambar maksimal 15 MB.');
+                return;
+            }
+
+            prosesGambarBerjalan = true;
+            setTombolGambarAktif(false);
+
+            const panel = document.getElementById('panelGambar');
+            const status = document.getElementById('statusGambar');
+            const info = document.getElementById('infoGambar');
+            const progress = document.getElementById('progressGambar');
+            const preview = document.getElementById('previewGambar');
+
+            panel.classList.remove('hidden');
+            if (urlPreviewGambar) URL.revokeObjectURL(urlPreviewGambar);
+            urlPreviewGambar = URL.createObjectURL(file);
+            preview.src = urlPreviewGambar;
+
+            status.className = 'text-xs font-bold text-blue-700';
+            status.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Mencocokkan foto dengan database...';
+            info.innerText = 'Mohon tunggu, sistem sedang membandingkan foto dengan seluruh foto stiker.';
+            progress.classList.remove('hidden');
+            progress.classList.add('animate-pulse');
+            progress.style.width = '100%';
+
+            try {
+                const formData = new FormData();
+                formData.append('gambar', file, file.name || 'foto-stiker.jpg');
+
+                const respon = await fetch('/gudang/pencarian-gambar', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await respon.json().catch(() => ({}));
+
+                if (!respon.ok || !data.ok) {
+                    throw new Error(data.pesan || 'Gagal memproses gambar.');
+                }
+                terapkanHasilGambar(data);
+            } catch (err) {
+                status.className = 'text-xs font-bold text-rose-700';
+                status.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-1"></i>Pencarian gambar gagal';
+                info.innerText = err.message || 'Terjadi kesalahan saat mencocokkan gambar.';
+                progress.classList.remove('animate-pulse');
+                progress.style.width = '100%';
+            } finally {
+                prosesGambarBerjalan = false;
+                setTombolGambarAktif(true);
+            }
+        }
+
+        function prosesFileGambar(input) {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (file) kirimGambar(file);
+        }
+
+        function resetPencarianGambar() {
+            hasilGambar = null;
+            document.querySelectorAll('.badge-skor').forEach(badge => badge.remove());
+
+            // Kembalikan urutan kartu seperti semula
+            kartuSemua
+                .slice()
+                .sort((a, b) => urutanAsli.get(a) - urutanAsli.get(b))
+                .forEach(kartu => containerHasil.appendChild(kartu));
+
+            const panel = document.getElementById('panelGambar');
+            const progress = document.getElementById('progressGambar');
+            const preview = document.getElementById('previewGambar');
+            panel.classList.add('hidden');
+            progress.classList.remove('animate-pulse');
+            progress.style.width = '0';
+
+            if (urlPreviewGambar) {
+                URL.revokeObjectURL(urlPreviewGambar);
+                urlPreviewGambar = null;
+            }
+            preview.removeAttribute('src');
+
+            const judulKosong = document.getElementById('pesanKosong').querySelector('p.font-bold');
+            if (judulKosong) judulKosong.innerText = 'Stiker tidak ditemukan';
+
+            cariStikerRealtime();
+        }
+
+        async function bukaKamera() {
+            const modal = document.getElementById('modalKamera');
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                // Browser tidak mendukung kamera live (mis. HTTP) -> buka kamera bawaan
+                document.getElementById('inputKamera').click();
+                return;
+            }
+
+            try {
+                streamKamera = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 960 }
+                    },
+                    audio: false
+                });
+                const video = document.getElementById('videoKamera');
+                video.srcObject = streamKamera;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                await video.play().catch(() => {});
+            } catch (err) {
+                hentikanKamera();
+                // Izin ditolak / tidak ada kamera -> fallback ke input file
+                document.getElementById('inputKamera').click();
+            }
+        }
+
+        function hentikanKamera() {
+            if (streamKamera) {
+                streamKamera.getTracks().forEach(track => track.stop());
+                streamKamera = null;
+            }
+            const video = document.getElementById('videoKamera');
+            if (video) video.srcObject = null;
+            const modal = document.getElementById('modalKamera');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function tutupKamera() {
+            hentikanKamera();
+        }
+
+        function ambilFotoKamera() {
+            const video = document.getElementById('videoKamera');
+            const canvas = document.getElementById('canvasKamera');
+
+            if (!video.videoWidth || !video.videoHeight) {
+                alert('Kamera belum siap. Tunggu sebentar lalu coba lagi.');
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            hentikanKamera();
+
+            canvas.toBlob(blob => {
+                if (!blob) {
+                    alert('Gagal mengambil foto. Silakan coba lagi.');
+                    return;
+                }
+                const file = new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+                kirimGambar(file);
+            }, 'image/jpeg', 0.9);
+        }
+
+        // ==========================================
+        // MODAL ATUR LOKASI RAK
+        // ==========================================
         function bukaModalEditLokasi(button) {
             const id = button.dataset.id;
             const namaBarang = button.dataset.nama;
@@ -294,7 +637,10 @@
         }
 
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') tutupModalEditLokasi();
+            if (e.key === 'Escape') {
+                tutupModalEditLokasi();
+                tutupKamera();
+            }
         });
 
         cariStikerRealtime();

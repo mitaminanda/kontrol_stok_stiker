@@ -34,6 +34,8 @@ env/
 
 # Uploads / Runtime Storage
 uploads/
+.cache_gambar_stiker.pkl
+.cache_gambar_stiker.pkl.tmp
 
 # IDEs and Editors
 .idea/

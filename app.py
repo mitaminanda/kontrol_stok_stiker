@@ -2,11 +2,13 @@ import os
 import io
 import zipfile
 import sqlite3
+import threading
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, jsonify, send_file
 import pandas as pd
+import image_match
 
 # ==========================================
 # 1. KONFIGURASI DATABASE & DIREKTORI
@@ -454,6 +456,7 @@ def stok_katalog():
 @app.route('/gudang/pencarian')
 @login_required()
 def gudang_pencarian():
+    _mulai_warmup_gambar()
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
@@ -480,6 +483,88 @@ def gudang_pencarian():
     daftar_stiker = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return render_template('gudang_pencarian.html', daftar_stiker=daftar_stiker)
+
+
+# ==========================================
+# PENCARIAN STIKER BERDASARKAN FOTO (IMAGE MATCHING)
+# ==========================================
+_warmup_gambar_dimulai = False
+_warmup_gambar_lock = threading.Lock()
+
+
+def _mulai_warmup_gambar():
+    """Hitung deskriptor foto di background agar pencarian gambar pertama cepat."""
+    global _warmup_gambar_dimulai
+    with _warmup_gambar_lock:
+        if _warmup_gambar_dimulai:
+            return
+        _warmup_gambar_dimulai = True
+
+    def kerja():
+        try:
+            conn = get_db()
+            rows = conn.execute(
+                "SELECT foto_bukti FROM incoming_stikers "
+                "WHERE foto_bukti IS NOT NULL AND foto_bukti != ''"
+            ).fetchall()
+            conn.close()
+            daftar_path = [os.path.join(UPLOAD_FOLDER, r['foto_bukti']) for r in rows]
+            image_match.hangatkan_cache(daftar_path)
+        except Exception:
+            pass
+
+    threading.Thread(target=kerja, daemon=True).start()
+
+
+@app.route('/gudang/pencarian-gambar', methods=['POST'])
+@login_required(role_required='gudang')
+def gudang_pencarian_gambar():
+    """Cocokkan foto kiriman pengguna dengan foto stiker yang ada di database."""
+    berkas = request.files.get('gambar')
+    if not berkas or not berkas.filename:
+        return jsonify({'ok': False, 'pesan': 'Tidak ada gambar yang dikirim.'}), 400
+
+    data = berkas.read()
+    if not data:
+        return jsonify({'ok': False, 'pesan': 'File gambar kosong.'}), 400
+    if len(data) > 15 * 1024 * 1024:
+        return jsonify({'ok': False, 'pesan': 'Ukuran gambar maksimal 15 MB.'}), 400
+
+    gambar = image_match.buka_gambar_dari_bytes(data)
+    if gambar is None:
+        return jsonify({'ok': False, 'pesan': 'File bukan gambar yang valid.'}), 400
+
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT id, nama_barang, foto_bukti
+        FROM incoming_stikers
+        WHERE foto_bukti IS NOT NULL AND foto_bukti != ''
+        ORDER BY id DESC
+    ''').fetchall()
+    conn.close()
+
+    kandidat = []
+    for row in rows:
+        path = os.path.join(UPLOAD_FOLDER, row['foto_bukti'])
+        if os.path.isfile(path):
+            kandidat.append({'id': row['id'], 'path': path})
+
+    if not kandidat:
+        return jsonify({
+            'ok': True,
+            'hasil': [],
+            'jumlah_kandidat': 0,
+            'terbaik': 0,
+            'pesan': 'Belum ada foto stiker di database untuk dibandingkan.'
+        })
+
+    hasil = image_match.cari_kemiripan(gambar, kandidat)
+    return jsonify({
+        'ok': True,
+        'hasil': hasil,
+        'jumlah_kandidat': len(kandidat),
+        'terbaik': hasil[0]['skor'] if hasil else 0,
+    })
 
 @app.route('/gudang/update-lokasi', methods=['POST'])
 @login_required()

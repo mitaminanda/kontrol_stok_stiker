@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring & Laporan - POV PPIC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 12mm 10mm 12mm 10mm;
+        }
+        @media print {
+            aside, header, .no-print { display: none !important; }
+            
+            body {
+                background: white !important;
+                overflow: visible !important;
+                height: auto !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            main {
+                overflow: visible !important;
+                padding: 0 !important;
+            }
+            .print-area {
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+
+            /* Hilangkan sudut lengkung (rounded) & overflow-hidden agar garis bingkai utuh tegas */
+            .print-area .rounded-2xl,
+            .print-area .overflow-hidden,
+            .print-area .overflow-x-auto {
+                border-radius: 0 !important;
+                overflow: visible !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            table {
+                font-size: 11px !important;
+                border-collapse: collapse !important;
+                width: 100% !important;
+                color: #000000 !important;
+                border: 1.5px solid #1e293b !important;
+            }
+            th, td {
+                border: 1px solid #334155 !important;
+                padding: 10px 12px !important;
+                color: #000000 !important;
+                vertical-align: middle !important;
+            }
+            th {
+                background-color: #f1f5f9 !important;
+                font-weight: 800 !important;
+                text-align: center !important;
+                font-size: 11px !important;
+            }
+
+            /* Tampilkan foto stiker utuh (tidak terpotong) dan jelas saat dicetak */
+            table img {
+                width: auto !important;
+                height: auto !important;
+                max-width: 170px !important;
+                max-height: 95px !important;
+                object-fit: contain !important;
+                border: 1px solid #475569 !important;
+                border-radius: 4px !important;
+                display: block !important;
+                margin: 0 auto !important;
+            }
+
+            button, span {
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
+                color: #000000 !important;
+                box-shadow: none !important;
+            }
+            .print-title { display: block !important; }
+            tr.print-hide-zero { display: none !important; }
+        }
+        .print-title { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 flex h-screen font-sans overflow-hidden">
+
+    <!-- SIDEBAR POV PPIC -->
+    <!-- BACKDROP MOBILE -->
+    <div id="sidebarBackdrop" onclick="toggleSidebarMobile()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden no-print"></div>
+
+    <!-- SIDEBAR POV PPIC -->
+    <aside id="mobileSidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shadow-xl flex-shrink-0 no-print transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-200 ease-in-out">
+        <div>
+            <div class="p-6 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-indigo-600 rounded-lg text-white">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-white font-bold tracking-wide">STOK STIKER</h2>
+                        <span class="text-xs text-indigo-400 font-medium">POV PPIC</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TIGA MENU TERPISAH -->
+            <nav class="p-4 space-y-2 text-sm font-medium">
+                <button type="button" onclick="gantiTampilan('gudang')" id="menuGudang"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-600 text-white shadow-md transition text-left">
+                    <i class="fa-solid fa-warehouse w-5 text-center"></i>
+                    <span>Stok Gudang</span>
+                </button>
+                <button type="button" onclick="gantiTampilan('produksi')" id="menuProduksi"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition text-left">
+                    <i class="fa-solid fa-industry w-5 text-center"></i>
+                    <span>Stok Produksi</span>
+                </button>
+                <button type="button" onclick="gantiTampilan('master')" id="menuMaster"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition text-left">
+                    <i class="fa-solid fa-database w-5 text-center"></i>
+                    <span>Master Produk & Stiker</span>
+                </button>
+            </nav>
+        </div>
+
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400">Login Sebagai:</p>
+                    <p class="text-sm font-bold text-white">{{ session.get('nama_lengkap', 'PPIC') }}</p>
+                </div>
+                <a href="/logout" title="Logout" class="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition">
+                    <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- KONTEN UTAMA -->
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <!-- TOPBAR -->
+            <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-sm no-print">
+            <div class="flex items-start sm:items-center gap-3">
+                <button type="button" onclick="toggleSidebarMobile()" class="md:hidden p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 mt-0.5 sm:mt-0">
+                    <i class="fa-solid fa-bars text-base"></i>
+                </button>
+                <div>
+                    <h1 id="judulHalaman" class="text-base md:text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-warehouse text-indigo-600"></i> Monitoring Stok Gudang
+                    </h1>
+                    <p id="deskripsiHalaman" class="text-[11px] md:text-xs text-slate-400">Pemantauan saldo fisik stiker di gudang berdasarkan No. QAN, supplier, dan histori serah terima</p>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="flex items-center gap-3 w-full sm:w-auto" id="topbarSearchContainer">
+                <div class="relative w-full sm:w-72">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </span>
+                    <input type="text" id="searchInput" onkeyup="filterTabel()" placeholder="Cari supplier, No. QAN, nama barang..."
+                        class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                </div>
+            </div>
+        </header>
+
+        <div class="px-5 py-6 w-full print-area">
+            
+            <!-- ============================================================== -->
+            <!-- 1. TAMPILAN KHUSUS STOK GUDANG                                 -->
+            <!-- ============================================================== -->
+            <div id="sectionGudang">
+                <div class="print-title mb-5 text-center">
+                    <h2 class="text-xl font-bold text-black uppercase tracking-wide">LAPORAN STOK STIKER (GUDANG)</h2>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 mb-4 no-print">
+                <a href="/ppic/export-excel/gudang" 
+                   class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-excel"></i> Unduh Excel
+                </a>
+                <button type="button" onclick="window.print()" 
+                        class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-print"></i> Cetak Laporan Gudang
+                </button>
+            </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-100 text-[11px] font-bold uppercase text-slate-700 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-4 py-3.5 text-center whitespace-nowrap">Foto</th>
+                                    <th class="px-4 py-3.5 text-center whitespace-nowrap">Nama Supplier</th>
+                                    <th class="px-4 py-3.5 text-center whitespace-nowrap">Nama Barang</th>
+                                    <th class="px-4 py-3.5 text-center whitespace-nowrap">NO. SAP</th>
+                                    <th class="px-4 py-3.5 text-center whitespace-nowrap">NO. QAN</th>
+                                    <th class="px-4 py-3.5 text-center whitespace-nowrap">Stok di Gudang</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for g in stok_gudang %}
+                                <tr class="row-laporan hover:bg-slate-50/80 transition">
+                                    <td class="px-4 py-3 text-center">
+                                        {% if g.foto_bukti %}
+                                            <div class="relative group inline-block cursor-pointer" onclick="zoomFoto('/uploads/{{ g.foto_bukti }}', '{{ g.supplier }} - {{ g.no_qan }}')">
+                                                <img src="/uploads/{{ g.foto_bukti }}" alt="Foto" class="w-12 h-12 object-cover rounded-lg border border-slate-200 shadow-sm transition transform group-hover:scale-105 mx-auto">
+                                                <div class="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-xs no-print">
+                                                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <div class="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 border border-slate-200 mx-auto">
+                                                <i class="fa-solid fa-image text-sm"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 py-3.5 font-bold text-slate-800 uppercase whitespace-nowrap text-center">
+                                        {{ g.supplier }}
+                                    </td>
+                                    <td class="px-4 py-3.5 font-semibold text-slate-800">
+                                        {{ g.nama_barang or '-' }}
+                                    </td>
+                                    <td class="px-4 py-3.5 font-mono font-bold text-slate-700 whitespace-nowrap text-center">
+                                        <span class="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                            {{ g.no_sap or '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3.5 font-mono font-bold text-slate-800 whitespace-nowrap text-center">
+                                        {{ g.no_qan }}
+                                    </td>
+                                    <td class="px-4 py-3.5 text-center whitespace-nowrap font-bold text-slate-900">
+                                        <button type="button" 
+                                            onclick="bukaDetailTransaksiIncoming('{{ g.id }}')"
+                                            class="font-bold px-3.5 py-1.5 rounded-lg border transition shadow-sm {% if g.sisa_stok_gudang > 0 %}text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border-blue-200{% else %}text-rose-600 bg-rose-50 border-rose-200{% endif %}"
+                                            title="Klik untuk melihat histori kedatangan dan pengiriman">
+                                            {% if g.sisa_stok_gudang > 0 %}
+                                                {{ "{:,}".format(g.sisa_stok_gudang) }} PCS
+                                            {% else %}
+                                                0 PCS (HABIS)
+                                            {% endif %}
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="py-12 text-center text-slate-400">Belum ada data kedatangan stiker di gudang.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- 2. TAMPILAN KHUSUS STOK PRODUKSI                               -->
+            <!-- ============================================================== -->
+            <div id="sectionProduksi" class="hidden">
+                <div class="print-title text-center mb-4">
+                <h2 class="text-base font-extrabold uppercase tracking-wide text-black">LAPORAN STOK STIKER (PRODUKSI)</h2>
+            </div>
+
+                <div class="flex items-center justify-end gap-2 mb-4 no-print">
+                <a href="/ppic/export-excel/produksi" 
+                   class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-excel"></i> Unduh Excel
+                </a>
+                <button type="button" onclick="window.print()" 
+                        class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-print"></i> Cetak Laporan Produksi
+                </button>
+            </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-100 text-[11px] font-bold uppercase text-slate-700 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-4 py-3.5">Buyer</th>
+                                    <th class="px-4 py-3.5">SKU</th>
+                                    <th class="px-4 py-3.5">Nama Produk</th>
+                                    <th class="px-4 py-3.5">Jenis Stiker</th>
+                                    <th class="px-4 py-3.5">No. SAS/SAP</th>
+                                    <th class="px-4 py-3.5 text-center text-emerald-700">Sisa Stok Produksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for item in laporan %}
+                                <tr class="row-laporan hover:bg-slate-50/80 transition {% if item.stok_produksi <= 0 %}print-hide-zero{% endif %}">
+                                    <td class="px-4 py-3.5 font-bold text-slate-800">{{ item.buyer }}</td>
+                                    <td class="px-4 py-3.5 font-mono font-bold text-slate-700">{{ item.sku }}</td>
+                                    <td class="px-4 py-3.5 font-semibold text-slate-800">{{ item.nama_produk }}</td>
+                                    <td class="px-4 py-3.5 font-bold text-indigo-600">{{ item.jenis_stiker }}</td>
+                                    <td class="px-4 py-3.5 font-mono font-bold text-slate-700">
+                                        <span class="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                            {{ item.no_sas_sap or '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3.5 text-center">
+                                        <button type="button" 
+                                            data-sku="{{ item.sku }}"
+                                            data-nama="{{ item.nama_produk }}"
+                                            data-jenis="{{ item.jenis_stiker }}"
+                                            onclick="bukaDetailProduksi(this.dataset.sku, this.dataset.nama, this.dataset.jenis, 'saldo')"
+                                            class="font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 transition shadow-sm"
+                                            title="Klik untuk rincian mutasi serah terima dari gudang">
+                                            {{ "{:,}".format(item.stok_produksi) }} PCS
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div> <!-- PENUTUP SECTION STOK PRODUKSI -->
+
+            <!-- ============================================================== -->
+            <!-- 3. TAMPILAN KHUSUS MASTER PRODUK & MAPPING NO. SAS / SAP         -->
+            <!-- ============================================================== -->
+            <div id="sectionMaster" class="hidden no-print">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/70">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-database"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800">Master Produk & Mapping No. SAS / SAP</h3>
+                                <p class="text-[11px] text-slate-500">Tambah produk/stiker baru ke database atau perbarui perubahan kode NO. SAS ke NO. SAP</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                <input type="text" id="searchMasterInput" onkeyup="filterTabelMaster()" placeholder="Cari SKU / Produk / SAP..." 
+                                        class="pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 w-56">
+                            </div>
+
+                            <button type="button" onclick="bukaModalMaster()" 
+                                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 transition whitespace-nowrap">
+                                <i class="fa-solid fa-plus"></i> Tambah Produk / Stiker
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[68vh]">
+                        <table class="w-full text-left border-collapse text-xs" id="tabelMasterProduk">
+                            <thead class="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold tracking-wider sticky top-0 z-10 border-b border-slate-200">
+                                <tr>
+                                    <th class="py-3 px-4">Buyer</th>
+                                    <th class="py-3 px-4">SKU</th>
+                                    <th class="py-3 px-4">Nama Produk</th>
+                                    <th class="py-3 px-4">Jenis Stiker</th>
+                                    <th class="py-3 px-4">No. SAS / SAP</th>
+                                    <th class="py-3 px-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for item in laporan %}
+                                <tr class="hover:bg-slate-50 transition row-master">
+                                    <td class="py-3 px-4 font-bold text-slate-700">{{ item.buyer }}</td>
+                                    <td class="py-3 px-4 font-mono text-slate-600">{{ item.sku }}</td>
+                                    <td class="py-3 px-4 font-semibold text-slate-800">{{ item.nama_produk }}</td>
+                                    <td class="py-3 px-4">
+                                        <span class="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg font-bold text-[11px]">
+                                            {{ item.jenis_stiker }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 font-mono font-bold text-indigo-700">
+                                        {{ item.no_sas_sap or '-' }}
+                                    </td>
+                                    <td class="py-3 px-4 text-center">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <button type="button" 
+                                                    data-id="{{ item.id }}"
+                                                    data-buyer="{{ item.buyer }}"
+                                                    data-sku="{{ item.sku }}"
+                                                    data-nama="{{ item.nama_produk }}"
+                                                    data-jenis="{{ item.jenis_stiker }}"
+                                                    data-sassap="{{ item.no_sas_sap or '' }}"
+                                                    onclick="editModalMaster(this)"
+                                                    class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[11px] font-bold transition flex items-center gap-1" 
+                                                    title="Ubah No. SAS ke SAP / Edit Produk">
+                                                <i class="fa-solid fa-pen-to-square"></i> Ubah SAS/SAP
+                                            </button>
+
+                                            <form action="/ppic/master/delete/{{ item.id }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus data stiker ini dari database?');" class="inline">
+                                                <button type="submit" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-[11px] transition" title="Hapus Data">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div> <!-- PENUTUP SECTION MASTER PRODUK -->
+
+        </div>
+    </main>
+
+    <!-- MODAL ZOOM FOTO INTERAKTIF -->
+    <div id="modalZoom" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 no-print" onclick="tutupZoom()">
+        <div class="relative max-w-4xl w-full max-h-[92vh] bg-white rounded-2xl p-4 shadow-2xl flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 gap-3">
+                <span id="zoomCaption" class="text-xs font-bold text-slate-700 truncate"></span>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="ubahZoom(-0.2)" title="Perkecil (-)" class="p-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-magnifying-glass-minus"></i>
+                    </button>
+                    <span id="zoomLevelText" class="text-xs font-mono font-bold text-slate-600 w-12 text-center">100%</span>
+                    <button type="button" onclick="ubahZoom(0.2)" title="Perbesar (+)" class="p-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-magnifying-glass-plus"></i>
+                    </button>
+                    <button type="button" onclick="resetZoom()" title="Reset Ukuran" class="p-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-right"></i> Reset
+                    </button>
+                    <button type="button" onclick="tutupZoom()" class="ml-2 text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="zoomContainer" class="flex-1 max-h-[75vh] overflow-auto flex items-center justify-center p-4 bg-slate-100/50 rounded-xl mt-3 select-none">
+                <img id="zoomImage" src="" alt="Zoom Stiker" class="max-h-[65vh] w-auto rounded-lg object-contain transition-transform duration-150 ease-out origin-center cursor-grab active:cursor-grabbing shadow-sm">
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2 text-center italic">* Bisa diperbesar/diperkecil menggunakan tombol di atas atau memutar scroll mouse pada gambar.</p>
+        </div>
+    </div>
+
+    <!-- MODAL DETAIL TRANSAKSI STOK GUDANG -->
+    <div id="modalDetailGudang" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-slate-200 max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Rincian Kronologis Transaksi Gudang
+                    </h3>
+                    <p id="gudang_sub_title" class="text-xs text-slate-500 mt-0.5 font-medium"></p>
+                </div>
+                <button type="button" onclick="tutupDetailStokGudang()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 my-4 text-center text-xs">
+                <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl">
+                    <span class="text-slate-500 block font-medium">Total Masuk (Incoming)</span>
+                    <span id="sumTotalIncoming" class="text-sm font-bold text-blue-700">0 PCS</span>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl">
+                    <span class="text-slate-500 block font-medium">Total Diberikan ke Produksi</span>
+                    <span id="sumTotalKeluar" class="text-sm font-bold text-amber-700">0 PCS</span>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
+                    <span class="text-slate-500 block font-medium">Sisa Fisik di Gudang</span>
+                    <span id="sumSisaStok" class="text-sm font-bold text-emerald-700">0 PCS</span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl overflow-hidden">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-100 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-200 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3 whitespace-nowrap">Waktu Transaksi</th>
+                            <th class="px-4 py-3 whitespace-nowrap">Aktivitas</th>
+                            <th class="px-4 py-3 font-mono">No. QAN</th>
+                            <th class="px-4 py-3 text-center whitespace-nowrap">Jumlah</th>
+                            <th class="px-4 py-3">Penyerah</th>
+                            <th class="px-4 py-3">Penerima</th>
+                            <th class="px-4 py-3 text-center whitespace-nowrap">Sisa Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyDetailGudang" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex justify-end">
+                <button type="button" onclick="tutupDetailStokGudang()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETAIL TRANSAKSI PRODUKSI -->
+    <div id="modalDetailProduksi" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-slate-200 max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-industry text-emerald-600"></i> Rincian Aktivitas Produksi
+                    </h3>
+                    <p id="produksi_sub_title" class="text-xs text-slate-500 mt-0.5 font-medium"></p>
+                </div>
+                <button type="button" onclick="tutupDetailProduksi()" class="text-slate-400 hover:text-slate-600 p-1.5">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-2 mt-4 border-b border-slate-200 pb-2">
+                <button type="button" id="tabBtnTerimaProd" onclick="switchTabProduksi('terima')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    1. Penerimaan dari Gudang
+                </button>
+                <button type="button" id="tabBtnPakaiProd" onclick="switchTabProduksi('pakai')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">
+                    2. Rincian Pemakaian Stiker
+                </button>
+            </div>
+
+            <div id="kontenTerimaProd" class="flex-1 overflow-y-auto mt-3 border border-slate-200 rounded-xl">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-100 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-200 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3">Waktu Penerimaan</th>
+                            <th class="px-4 py-3">No. QAN</th>
+                            <th class="px-4 py-3 text-center">Jumlah Diterima</th>
+                            <th class="px-4 py-3">Penerima (Produksi)</th>
+                            <th class="px-4 py-3">Penyerah (Gudang)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyTerimaProd" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <div id="kontenPakaiProd" class="flex-1 overflow-y-auto mt-3 border border-slate-200 rounded-xl hidden">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-100 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-200 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3">Tanggal & Jam Pakai</th>
+                            <th class="px-4 py-3">Shift</th>
+                            <th class="px-4 py-3 text-center">Digunakan</th>
+                            <th class="px-4 py-3 text-center text-rose-600">BS (Rusak)</th>
+                            <th class="px-4 py-3 text-center text-amber-700">Total Pengurangan</th>
+                            <th class="px-4 py-3">Operator Mesin</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyPakaiProd" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex justify-end">
+                <button type="button" onclick="tutupDetailProduksi()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL TAMBAH / UBAH MASTER PRODUK & NO. SAS/SAP          -->
+    <!-- ======================================================== -->
+    <div id="modalMaster" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 id="modalMasterTitle" class="font-bold text-slate-800 text-base">Tambah Produk / Jenis Stiker Baru</h3>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Data otomatis tersimpan ke database & muncul di form Produksi</p>
+                </div>
+                <button type="button" onclick="tutupModalMaster()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form action="/ppic/master/save" method="POST" class="mt-4 space-y-3 text-xs">
+                <input type="hidden" name="stiker_id" id="master_id">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Nama Buyer</label>
+                        <input type="text" name="buyer" id="master_buyer" required placeholder="Contoh: EXPORT / LOKAL"
+                               class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Kode SKU</label>
+                        <input type="text" name="sku" id="master_sku" required placeholder="Contoh: 400123"
+                               class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Nama Produk</label>
+                    <input type="text" name="nama_produk" id="master_nama_produk" required placeholder="Contoh: TORABIKA CAPPUCCINO 25G"
+                           class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Jenis Stiker</label>
+                    <input type="text" name="jenis_stiker" id="master_jenis_stiker" required placeholder="Contoh: STIKER PROMO / STIKER BARCODE"
+                           class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-indigo-700 mb-1">No. SAS / SAP <span class="text-slate-400 font-normal">(Opsional jika belum ada SAP)</span></label>
+                    <input type="text" name="no_sas_sap" id="master_no_sas_sap" placeholder="Kosongkan jika belum ada SAP (otomatis terisi No. SAS)"
+                           class="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-300 rounded-xl font-mono font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-[10px] text-slate-400 mt-1">*Jika dikosongkan, sistem otomatis mengisi nomor SAS sementara. Jika No. SAP sudah ada, langsung ketik di kolom ini.</p>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="tutupModalMaster()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition">Simpan ke Database</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT JAVASCRIPT -->
+    <script>
+        function gantiTampilan(tipe) {
+            const secGudang = document.getElementById('sectionGudang');
+            const secProduksi = document.getElementById('sectionProduksi');
+            const secMaster = document.getElementById('sectionMaster');
+
+            const menuGudang = document.getElementById('menuGudang');
+            const menuProduksi = document.getElementById('menuProduksi');
+            const menuMaster = document.getElementById('menuMaster');
+
+            const judul = document.getElementById('judulHalaman');
+            const deskripsi = document.getElementById('deskripsiHalaman');
+            const searchBar = document.getElementById('topbarSearchContainer');
+
+            const kelasAktif = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-600 text-white shadow-md transition text-left';
+            const kelasNonAktif = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition text-left';
+
+            secGudang.classList.add('hidden');
+            secProduksi.classList.add('hidden');
+            secMaster.classList.add('hidden');
+            menuGudang.className = kelasNonAktif;
+            menuProduksi.className = kelasNonAktif;
+            menuMaster.className = kelasNonAktif;
+
+            if (tipe === 'gudang') {
+                secGudang.classList.remove('hidden');
+                menuGudang.className = kelasAktif;
+                searchBar.classList.remove('hidden');
+                judul.innerHTML = '<i class="fa-solid fa-warehouse text-indigo-600"></i> Monitoring Stok Gudang';
+                deskripsi.innerText = 'Pemantauan saldo fisik stiker di gudang berdasarkan No. QAN, supplier, dan histori serah terima';
+            } else if (tipe === 'produksi') {
+                secProduksi.classList.remove('hidden');
+                menuProduksi.className = kelasAktif;
+                searchBar.classList.remove('hidden');
+                judul.innerHTML = '<i class="fa-solid fa-industry text-indigo-600"></i> Monitoring Stok Produksi';
+                deskripsi.innerText = 'Pemantauan saldo fisik produksi dan rekapitulasi pemakaian mesin per bulan';
+            } else if (tipe === 'master') {
+                secMaster.classList.remove('hidden');
+                menuMaster.className = kelasAktif;
+                searchBar.classList.add('hidden'); // Sembunyikan search global karena tabel master punya search sendiri
+                judul.innerHTML = '<i class="fa-solid fa-database text-indigo-600"></i> Master Produk & Mapping No. SAS / SAP';
+                deskripsi.innerText = 'Kelola database produk, tambah jenis stiker baru, dan perbarui kode NO. SAS ke NO. SAP';
+            }
+        }
+
+        function filterTabel() {
+            let input = document.getElementById('searchInput').value.toLowerCase();
+            let rows = document.querySelectorAll('.row-laporan');
+            rows.forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(input) ? '' : 'none';
+            });
+        }
+
+        // === LOGIKA ZOOM INTERAKTIF ===
+        let skalaZoom = 1, transX = 0, transY = 0, isDragging = false, startX = 0, startY = 0;
+
+        function zoomFoto(src, caption) {
+            const img = document.getElementById('zoomImage');
+            img.src = src;
+            document.getElementById('zoomCaption').innerText = caption;
+            resetZoom();
+            document.getElementById('modalZoom').classList.remove('hidden');
+        }
+
+        function perbaruiTransformasi() {
+            const img = document.getElementById('zoomImage');
+            img.style.transform = `translate(${transX}px, ${transY}px) scale(${skalaZoom})`;
+            document.getElementById('zoomLevelText').innerText = `${Math.round(skalaZoom * 100)}%`;
+            img.style.cursor = skalaZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default';
+        }
+
+        function ubahZoom(delta, mouseX = null, mouseY = null) {
+            const zoomLama = skalaZoom;
+            skalaZoom = Math.min(Math.max(0.5, skalaZoom + delta), 4.5);
+            if (mouseX !== null && mouseY !== null) {
+                const ratio = skalaZoom / zoomLama;
+                transX = mouseX - (mouseX - transX) * ratio;
+                transY = mouseY - (mouseY - transY) * ratio;
+            } else if (skalaZoom <= 1) {
+                transX = 0; transY = 0;
+            }
+            perbaruiTransformasi();
+        }
+
+        function resetZoom() {
+            skalaZoom = 1; transX = 0; transY = 0;
+            perbaruiTransformasi();
+        }
+
+        function tutupZoom() {
+            document.getElementById('modalZoom').classList.add('hidden');
+            resetZoom();
+        }
+
+        const container = document.getElementById('zoomContainer');
+        const imgZoom = document.getElementById('zoomImage');
+
+        container.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - rect.width / 2;
+            const mouseY = e.clientY - rect.top - rect.height / 2;
+            ubahZoom(e.deltaY < 0 ? 0.25 : -0.25, mouseX, mouseY);
+        });
+
+        imgZoom.addEventListener('mousedown', function(e) {
+            if (skalaZoom <= 1) return;
+            isDragging = true;
+            startX = e.clientX - transX;
+            startY = e.clientY - transY;
+            imgZoom.style.cursor = 'grabbing';
+            imgZoom.style.transition = 'none';
+        });
+
+        window.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            transX = e.clientX - startX;
+            transY = e.clientY - startY;
+            perbaruiTransformasi();
+        });
+
+        window.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                imgZoom.style.cursor = 'grab';
+                imgZoom.style.transition = 'transform 0.1s ease-out';
+            }
+        });
+
+        // === DETAIL GUDANG & PRODUKSI ===
+        function bukaDetailTransaksiIncoming(incomingId) {
+            const tbody = document.getElementById('tbodyDetailGudang');
+            tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">Memuat rincian transaksi...</td></tr>';
+            document.getElementById('modalDetailGudang').classList.remove('hidden');
+
+            fetch(`/api/incoming/${incomingId}/history`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) return alert(data.error);
+                    document.getElementById('gudang_sub_title').innerText = `${data.incoming.nama_barang || '-'} | Supplier: ${data.incoming.supplier} | QAN: ${data.incoming.no_qan}`;
+                    document.getElementById('sumTotalIncoming').innerText = `${Number(data.total_incoming).toLocaleString()} PCS`;
+                    document.getElementById('sumTotalKeluar').innerText = `${Number(data.total_keluar).toLocaleString()} PCS`;
+                    document.getElementById('sumSisaStok').innerText = `${Number(data.sisa_stok).toLocaleString()} PCS`;
+
+                    let logs = [{
+                        waktu: data.incoming.waktu_input || data.incoming.tanggal_datang,
+                        tipe: 'KEDATANGAN',
+                        qan: data.incoming.no_qan,
+                        penyerah: data.incoming.supplier,
+                        penerima: data.incoming.diinput_oleh || 'Petugas Gudang',
+                        jumlah: Number(data.total_incoming)
+                    }];
+
+                    if (data.penyerahan) {
+                        data.penyerahan.forEach(p => {
+                            logs.push({
+                                waktu: p.waktu_penyerahan,
+                                tipe: 'PENGIRIMAN',
+                                qan: data.incoming.no_qan,
+                                penyerah: p.petugas_gudang || 'Petugas Gudang',
+                                penerima: `${p.pengaju} (Produksi)`,
+                                jumlah: Number(p.jumlah_diserahkan)
+                            });
+                        });
+                    }
+
+                    logs.sort((a, b) => new Date(a.waktu) - new Date(b.waktu));
+                    tbody.innerHTML = '';
+                    let saldo = 0;
+
+                    logs.forEach(item => {
+                        let badgeHtml = item.tipe === 'KEDATANGAN'
+                            ? `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md font-bold text-[10px]">KEDATANGAN</span>`
+                            : `<span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md font-bold text-[10px]">SERAH KE PRODUKSI</span>`;
+                        let jumlahHtml = item.tipe === 'KEDATANGAN'
+                            ? `<span class="font-bold text-blue-600">+${item.jumlah.toLocaleString()} PCS</span>`
+                            : `<span class="font-bold text-rose-600">-${item.jumlah.toLocaleString()} PCS</span>`;
+                        saldo += item.tipe === 'KEDATANGAN' ? item.jumlah : -item.jumlah;
+
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="px-4 py-3 font-mono text-slate-500 text-[11px] whitespace-nowrap">${item.waktu}</td>
+                                <td class="px-4 py-3 whitespace-nowrap">${badgeHtml}</td>
+                                <td class="px-4 py-3 font-mono font-bold text-slate-700 whitespace-nowrap">${item.qan}</td>
+                                <td class="px-4 py-3 text-center whitespace-nowrap">${jumlahHtml}</td>
+                                <td class="px-4 py-3 text-slate-700">${item.penyerah || '-'}</td>
+                                <td class="px-4 py-3 text-slate-700">${item.penerima || '-'}</td>
+                                <td class="px-4 py-3 text-center font-bold text-slate-800 whitespace-nowrap bg-slate-50/50">${saldo.toLocaleString()} PCS</td>
+                            </tr>`;
+                    });
+                })
+                .catch(() => {
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-rose-500">Gagal memuat rincian transaksi gudang.</td></tr>';
+                });
+        }
+
+        function tutupDetailStokGudang() { document.getElementById('modalDetailGudang').classList.add('hidden'); }
+
+        function bukaDetailProduksi(sku, nama, jenis, initialTab) {
+            document.getElementById('produksi_sub_title').innerText = `${nama} (${sku}) | Jenis: ${jenis}`;
+            const tbodyTerima = document.getElementById('tbodyTerimaProd');
+            const tbodyPakai = document.getElementById('tbodyPakaiProd');
+
+            tbodyTerima.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">Memuat rincian penerimaan...</td></tr>';
+            tbodyPakai.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">Memuat rincian pemakaian...</td></tr>';
+            document.getElementById('modalDetailProduksi').classList.remove('hidden');
+
+            fetch(`/api/ppic/detail_transaksi/${encodeURIComponent(sku)}/${encodeURIComponent(jenis)}`)
+                .then(res => res.json())
+                .then(data => {
+                    tbodyTerima.innerHTML = (!data.pengiriman || data.pengiriman.length === 0)
+                        ? '<tr><td colspan="5" class="py-6 text-center text-slate-400">Belum ada serah terima stiker dari gudang.</td></tr>'
+                        : data.pengiriman.map(p => `
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="px-4 py-3 font-mono text-[11px] text-slate-500">${p.waktu}</td>
+                                <td class="px-4 py-3 font-mono font-bold text-blue-600">${p.no_qan}</td>
+                                <td class="px-4 py-3 text-center font-bold text-emerald-700">+${Number(p.jumlah).toLocaleString()} PCS</td>
+                                <td class="px-4 py-3 text-slate-700">${p.penerima}</td>
+                                <td class="px-4 py-3 text-slate-700">${p.penyerah || '-'}</td>
+                            </tr>`).join('');
+
+                    tbodyPakai.innerHTML = (!data.pemakaian || data.pemakaian.length === 0)
+                        ? '<tr><td colspan="6" class="py-6 text-center text-slate-400">Belum ada pemakaian di mesin produksi.</td></tr>'
+                        : data.pemakaian.map(m => `
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="px-4 py-3 font-mono text-[11px] text-slate-500">${m.tanggal} ${m.waktu || ''}</td>
+                                <td class="px-4 py-3"><span class="bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded text-[11px]">${m.shift}</span></td>
+                                <td class="px-4 py-3 text-center font-semibold text-slate-700">${Number(m.jumlah_digunakan).toLocaleString()} PCS</td>
+                                <td class="px-4 py-3 text-center font-bold text-rose-600">${Number(m.jumlah_bs).toLocaleString()} PCS</td>
+                                <td class="px-4 py-3 text-center font-bold text-amber-700 bg-amber-50/50">-${Number(m.total_digunakan).toLocaleString()} PCS</td>
+                                <td class="px-4 py-3 text-slate-700">${m.petugas_produksi}</td>
+                            </tr>`).join('');
+
+                    switchTabProduksi(initialTab === 'pemakaian' ? 'pakai' : 'terima');
+                });
+        }
+
+        function switchTabProduksi(tab) {
+            const btnTerima = document.getElementById('tabBtnTerimaProd');
+            const btnPakai = document.getElementById('tabBtnPakaiProd');
+            const kontenTerima = document.getElementById('kontenTerimaProd');
+            const kontenPakai = document.getElementById('kontenPakaiProd');
+
+            if (tab === 'terima') {
+                btnTerima.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+                btnPakai.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200';
+                kontenTerima.classList.remove('hidden');
+                kontenPakai.classList.add('hidden');
+            } else {
+                btnPakai.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200';
+                btnTerima.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200';
+                kontenPakai.classList.remove('hidden');
+                kontenTerima.classList.add('hidden');
+            }
+        }
+
+        function tutupDetailProduksi() { document.getElementById('modalDetailProduksi').classList.add('hidden'); }
+
+        // === LOGIKA MASTER PRODUK & UBAH SAS/SAP ===
+        function bukaModalMaster() {
+            document.getElementById('modalMasterTitle').innerText = 'Tambah Produk / Jenis Stiker Baru';
+            document.getElementById('master_id').value = '';
+            document.getElementById('master_buyer').value = '';
+            document.getElementById('master_sku').value = '';
+            document.getElementById('master_nama_produk').value = '';
+            document.getElementById('master_jenis_stiker').value = '';
+            document.getElementById('master_no_sas_sap').value = '';
+            document.getElementById('modalMaster').classList.remove('hidden');
+        }
+
+        function editModalMaster(btn) {
+            document.getElementById('modalMasterTitle').innerText = 'Ubah No. SAS ke SAP / Edit Data Stiker';
+            document.getElementById('master_id').value = btn.dataset.id;
+            document.getElementById('master_buyer').value = btn.dataset.buyer;
+            document.getElementById('master_sku').value = btn.dataset.sku;
+            document.getElementById('master_nama_produk').value = btn.dataset.nama;
+            document.getElementById('master_jenis_stiker').value = btn.dataset.jenis;
+            const sasSap = btn.dataset.sassap;
+            document.getElementById('master_no_sas_sap').value = (sasSap === 'None' || !sasSap) ? '' : sasSap;
+            document.getElementById('modalMaster').classList.remove('hidden');
+        }
+
+        function tutupModalMaster() {
+            document.getElementById('modalMaster').classList.add('hidden');
+        }
+
+        function filterTabelMaster() {
+            const keyword = document.getElementById('searchMasterInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#tabelMasterProduk tbody .row-master');
+            rows.forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(keyword) ? '' : 'none';
+            });
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                tutupZoom();
+                tutupDetailStokGudang();
+                tutupDetailProduksi();
+                tutupModalMaster();
+            }
+        });
+
+        // Inisialisasi Pilihan Tahun Mulai 2026
+        (function initPilihanTahun() {
+            const selectTahun = document.getElementById('filterTahunSelect');
+            if (!selectTahun) return;
+            const tahunMulai = 2026;
+            const tahunMaksimal = Math.max(new Date().getFullYear() + 10, 2036);
+            const tahunDipilih = "{{ tahun_aktif }}";
+
+            selectTahun.innerHTML = '';
+            for (let t = tahunMulai; t <= tahunMaksimal; t++) {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = t;
+                if (String(t) === String(tahunDipilih)) opt.selected = true;
+                selectTahun.appendChild(opt);
+            }
+        })();
+
+        function toggleSidebarMobile() {
+          document.getElementById('mobileSidebar').classList.toggle('-translate-x-full');
+          document.getElementById('sidebarBackdrop').classList.toggle('hidden');
+      }
+
+    </script>
+</body>
+</html>

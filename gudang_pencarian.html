@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cari Lokasi Stiker - POV Gudang</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50 flex h-screen font-sans overflow-hidden">
+
+    <!-- SIDEBAR POV GUDANG -->
+    <!-- BACKDROP MOBILE -->
+    <div id="sidebarBackdrop" onclick="toggleSidebarMobile()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
+
+    <!-- SIDEBAR POV GUDANG -->
+    <aside id="mobileSidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shadow-xl flex-shrink-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-200 ease-in-out">
+        <div>
+            <div class="p-6 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-blue-600 rounded-lg text-white">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-white font-bold tracking-wide">STOK STIKER</h2>
+                        <span class="text-xs text-blue-400 font-medium">POV Gudang</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigasi Menu -->
+            <nav class="p-4 space-y-1.5 text-sm font-medium">
+                <a href="/gudang/incoming" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-truck-ramp-box w-5 text-center"></i>
+                    <span>Incoming Stiker</span>
+                </a>
+                <a href="/gudang/permintaan" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-clipboard-check w-5 text-center"></i>
+                    <span>Permintaan Produksi</span>
+                </a>
+                <a href="/stok/katalog" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-table-cells-large w-5 text-center"></i>
+                    <span>Stok & Laporan</span>
+                </a>
+                <a href="/gudang/pencarian" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600 text-white shadow-md">
+                    <i class="fa-solid fa-magnifying-glass-location w-5 text-center"></i>
+                    <span>Cari Lokasi Stiker</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400">Login Sebagai:</p>
+                    <p class="text-sm font-bold text-white">{{ session.get('nama_lengkap', 'Petugas Gudang') }}</p>
+                </div>
+                <a href="/logout" title="Logout" class="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition">
+                    <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- KONTEN UTAMA -->
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-sm">
+          <div class="flex items-start sm:items-center gap-3">
+              <button type="button" onclick="toggleSidebarMobile()" class="md:hidden p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 mt-0.5 sm:mt-0">
+                  <i class="fa-solid fa-bars text-base"></i>
+              </button>
+              <div>
+                  <h1 class="text-base md:text-xl font-bold text-slate-800">Pelacakan & Pencarian Lokasi Stiker</h1>
+                  <p class="text-[11px] md:text-xs text-slate-500 mt-0.5">Keterangan Rak: <strong>RAK A = SAP</strong> | <strong>RAK B = NON SAP</strong> (Lantai 1 – 3)</p>
+              </div>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] md:text-xs font-bold">
+              <span class="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg">RAK A = SAP</span>
+              <span class="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg">RAK B = NON SAP</span>
+          </div>
+      </header>
+
+      <div class="p-4 md:p-8 max-w-5xl w-full mx-auto space-y-6">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="p-4 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-2.5">
+                      <i class="fa-solid fa-circle-check"></i>
+                      <span>{{ message }}</span>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <!-- KOTAK PENCARIAN REAL-TIME -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-2">
+                    Ketik Nama Barang / Nama Stiker / No. QAN / Supplier
+                </label>
+                <div class="relative flex items-center">
+                    <span class="absolute left-4 text-blue-600 text-lg">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </span>
+                    <input type="text" id="inputCariStiker" onkeyup="cariStikerRealtime()" autofocus
+                           placeholder="Contoh: CARAMELO AUSIE, KOPIKO, 04 11 01, SSI..."
+                           class="w-full pl-12 pr-24 py-3.5 bg-amber-50/60 border-2 border-blue-500 rounded-xl text-base font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition">
+                    <button type="button" onclick="resetPencarian()" id="btnClearSearch"
+                            class="hidden absolute right-3 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold">
+                        Reset
+                    </button>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs text-slate-500">
+                    <span id="infoJumlahHasil">Menampilkan seluruh stok stiker di gudang</span>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer font-semibold text-slate-700">
+                        <input type="checkbox" id="chkHanyaAdaStok" onchange="cariStikerRealtime()" checked class="rounded text-blue-600">
+                        Sembunyikan stiker yang stoknya sudah 0 PCS
+                    </label>
+                </div>
+            </div>
+
+            <!-- HASIL KARTU DETAIL STIKER & LOKASI RAK -->
+            <div id="containerHasilStiker" class="space-y-4">
+                {% for item in daftar_stiker %}
+                <div class="kartu-stiker bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:border-blue-400 transition"
+                     data-search="{{ (item.nama_barang or '')|lower }} {{ (item.supplier or '')|lower }} {{ (item.no_qan or '')|lower }} {{ (item.no_sap or '')|lower }} {{ (item.lokasi_rak or '')|lower }}"
+                     data-stok="{{ item.sisa_stok_gudang }}">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-12">
+                        <!-- Detail Identitas & Lokasi Rak (7 Kolom) -->
+                        <div class="md:col-span-7 divide-y divide-slate-200 border-b md:border-b-0 md:border-r border-slate-200 text-sm">
+                            <div class="grid grid-cols-3 px-5 py-3.5 bg-rose-50/40">
+                                <span class="text-xs font-bold uppercase text-slate-500">NAMA BARANG</span>
+                                <span class="col-span-2 font-extrabold text-blue-700">{{ item.nama_barang or '-' }}</span>
+                            </div>
+                            <div class="grid grid-cols-3 px-5 py-3">
+                                <span class="text-xs font-bold uppercase text-slate-500">NAMA SUPPLIER</span>
+                                <span class="col-span-2 font-bold text-slate-800">{{ item.supplier or '-' }}</span>
+                            </div>
+                            <div class="grid grid-cols-3 px-5 py-3 bg-rose-50/40">
+                                <span class="text-xs font-bold uppercase text-slate-500">NO. QAN / SAP</span>
+                                <span class="col-span-2 font-mono font-bold text-slate-700">
+                                    {{ item.no_qan }}
+                                    {% if item.no_sap %}
+                                        <span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">SAP: {{ item.no_sap }}</span>
+                                    {% else %}
+                                        <span class="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs">NON SAP (SAS)</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-3 px-5 py-3">
+                                <span class="text-xs font-bold uppercase text-slate-500">SISA STOK</span>
+                                <span class="col-span-2 font-extrabold {% if item.sisa_stok_gudang > 0 %}text-emerald-600{% else %}text-rose-500{% endif %}">
+                                    {{ "{:,}".format(item.sisa_stok_gudang) }} PCS
+                                    <span class="text-xs font-normal text-slate-400">(Awal: {{ "{:,}".format(item.total_incoming) }} PCS)</span>
+                                </span>
+                            </div>
+                            <!-- BARIS LOKASI RAK -->
+                            <div class="grid grid-cols-3 px-5 py-4 bg-rose-50/70 items-center">
+                                <span class="text-xs font-extrabold uppercase text-slate-700">LOKASI RAK</span>
+                                <div class="col-span-2 flex items-center justify-between gap-2">
+                                    <span class="text-xl font-black tracking-wide text-rose-600">
+                                        {{ item.lokasi_rak or 'BELUM DIATUR' }}
+                                    </span>
+                                    <button type="button" onclick="bukaModalEditLokasi('{{ item.id }}', '{{ item.nama_barang }}', '{{ item.lokasi_rak or '' }}')"
+                                            class="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 rounded-lg text-[11px] font-bold shadow-sm transition">
+                                        <i class="fa-solid fa-pen"></i> Atur Rak
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Foto Stiker Besar (5 Kolom) -->
+                        <div class="md:col-span-5 p-4 bg-white flex flex-col items-center justify-center">
+                            {% if item.foto_bukti %}
+                                <img src="/uploads/{{ item.foto_bukti }}" alt="Foto Stiker"
+                                     class="max-h-52 w-auto object-contain rounded-xl border border-slate-200 shadow-sm">
+                                <span class="text-[11px] text-slate-400 mt-2">Tanggal Masuk: {{ item.tanggal_datang }}</span>
+                            {% else %}
+                                <div class="w-full h-44 bg-slate-100 rounded-xl flex flex-col items-center justify-center text-slate-400">
+                                    <i class="fa-solid fa-image text-3xl mb-2"></i>
+                                    <span class="text-xs font-semibold">Tidak ada foto stiker</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="pesanKosong" class="hidden bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400">
+                <i class="fa-solid fa-box-open text-4xl mb-3"></i>
+                <p class="font-bold text-slate-600">Stiker tidak ditemukan</p>
+                <p class="text-xs mt-1">Coba kata kunci nama barang lain atau hapus centang filter stok kosong.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL ATUR / UBAH LOKASI RAK (KETIK MANUAL) -->
+    <div id="modalEditLokasi" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <h3 class="font-bold text-slate-800 text-base">Atur Lokasi Penyimpanan Stiker</h3>
+            <p id="labelBarangLokasi" class="text-xs text-slate-500 mt-0.5 pb-3 border-b border-slate-100"></p>
+
+            <form action="/gudang/update-lokasi" method="POST" class="mt-4 space-y-4">
+                <input type="hidden" name="incoming_id" id="edit_lokasi_incoming_id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Kelompok Rak</label>
+                    <select name="kelompok_rak" id="selectEditKelompokRak" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold">
+                        <option value="RAK A">RAK A (SAP)</option>
+                        <option value="RAK B">RAK B (NON SAP)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Detail Lokasi / Lantai (Ketik Manual)</label>
+                    <input type="text" name="detail_lokasi" id="inputEditLokasiRak" required
+                           placeholder="Contoh: LANTAI 1 atau LANTAI 2"
+                           class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold uppercase focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="tutupModalEditLokasi()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold">Simpan Lokasi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function cariStikerRealtime() {
+            const keyword = document.getElementById('inputCariStiker').value.toLowerCase().trim();
+            const hanyaAdaStok = document.getElementById('chkHanyaAdaStok').checked;
+            const kartuList = document.querySelectorAll('.kartu-stiker');
+            const btnClear = document.getElementById('btnClearSearch');
+            
+            btnClear.classList.toggle('hidden', keyword === '');
+
+            let tampil = 0;
+            kartuList.forEach(kartu => {
+                const teks = kartu.dataset.search;
+                const stok = parseInt(kartu.dataset.stok || '0', 10);
+                const cocokKata = teks.includes(keyword);
+                const cocokStok = !hanyaAdaStok || stok > 0;
+
+                if (cocokKata && cocokStok) {
+                    kartu.classList.remove('hidden');
+                    tampil++;
+                } else {
+                    kartu.classList.add('hidden');
+                }
+            });
+
+            document.getElementById('infoJumlahHasil').innerText = `Ditemukan ${tampil} lokasi stiker yang sesuai`;
+            document.getElementById('pesanKosong').classList.toggle('hidden', tampil > 0);
+        }
+
+        function resetPencarian() {
+            document.getElementById('inputCariStiker').value = '';
+            cariStikerRealtime();
+            document.getElementById('inputCariStiker').focus();
+        }
+
+        function bukaModalEditLokasi(id, namaBarang, lokasiSekarang) {
+            document.getElementById('edit_lokasi_incoming_id').value = id;
+            document.getElementById('labelBarangLokasi').innerText = namaBarang;
+
+            const selectKelompok = document.getElementById('selectEditKelompokRak');
+            const inputDetail = document.getElementById('inputEditLokasiRak');
+
+            if (lokasiSekarang && lokasiSekarang !== '-') {
+                // Pisahkan bagian "RAK A" / "RAK B" dari detail lantainya
+                const bagian = lokasiSekarang.split(' - ');
+                if (bagian.length >= 2) {
+                    const rakUtama = bagian[0].trim().toUpperCase();
+                    if (rakUtama === 'RAK A' || rakUtama === 'RAK B') {
+                        selectKelompok.value = rakUtama;
+                    }
+                    // Ambil bagian terakhir saja (misal: "LANTAI 2") agar tidak double rak
+                    inputDetail.value = bagian[bagian.length - 1].trim();
+                } else {
+                    inputDetail.value = lokasiSekarang.replace(/^RAK\s*[AB]\s*-?\s*/i, '').trim();
+                }
+            } else {
+                selectKelompok.value = 'RAK A';
+                inputDetail.value = '';
+            }
+
+            document.getElementById('modalEditLokasi').classList.remove('hidden');
+        }
+
+        function tutupModalEditLokasi() {
+            document.getElementById('modalEditLokasi').classList.add('hidden');
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') tutupModalEditLokasi();
+        });
+
+        cariStikerRealtime();
+
+        function toggleSidebarMobile() {
+          document.getElementById('mobileSidebar').classList.toggle('-translate-x-full');
+          document.getElementById('sidebarBackdrop').classList.toggle('hidden');
+      }
+
+    </script>
+</body>
+</html>

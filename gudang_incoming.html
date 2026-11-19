@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incoming Stiker - POV Gudang</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50 flex h-screen font-sans overflow-hidden">
+
+    <!-- SIDEBAR POV GUDANG -->
+    <!-- BACKDROP MOBILE -->
+    <div id="sidebarBackdrop" onclick="toggleSidebarMobile()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
+
+    <!-- SIDEBAR POV GUDANG -->
+    <aside id="mobileSidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shadow-xl flex-shrink-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-200 ease-in-out">
+        <div>
+            <!-- Header Brand -->
+            <div class="p-6 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-blue-600 rounded-lg text-white">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-white font-bold tracking-wide">STOK STIKER</h2>
+                        <span class="text-xs text-blue-400 font-medium">POV Gudang</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigasi Menu -->
+            <nav class="p-4 space-y-1.5 text-sm font-medium">
+                <a href="/gudang/incoming" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600 text-white shadow-md">
+                    <i class="fa-solid fa-truck-ramp-box w-5 text-center"></i>
+                    <span>Incoming Stiker</span>
+                </a>
+                <a href="/gudang/permintaan" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-clipboard-check w-5 text-center"></i>
+                    <span>Permintaan Produksi</span>
+                </a>
+                <a href="/stok/katalog" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-table-cells-large w-5 text-center"></i>
+                    <span>Stok & Laporan</span>
+                </a>
+                <a href="/gudang/pencarian" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-magnifying-glass-location w-5 text-center"></i>
+                    <span>Cari Lokasi Stiker</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Profil & Logout -->
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400">Login Sebagai:</p>
+                    <p class="text-sm font-bold text-white">{{ session.get('nama_lengkap', 'Petugas Gudang') }}</p>
+                </div>
+                <a href="/logout" title="Logout" class="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition">
+                    <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- KONTEN UTAMA -->
+    <main class="flex-1 flex flex-col overflow-y-auto min-w-0">
+        <header class="bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between gap-2 sticky top-0 z-20 shadow-sm">
+          <div class="flex items-center gap-3">
+              <button type="button" onclick="toggleSidebarMobile()" class="md:hidden p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">
+                  <i class="fa-solid fa-bars text-base"></i>
+              </button>
+              <h1 class="text-base md:text-xl font-bold text-slate-800">Input Incoming Stiker</h1>
+          </div>
+          <span class="text-[11px] md:text-xs bg-slate-100 text-slate-600 px-2.5 md:px-3 py-1.5 rounded-full font-medium border border-slate-200 whitespace-nowrap">
+              <i class="fa-regular fa-calendar mr-1"></i>{{ today }}
+          </span>
+      </header>
+
+        <!-- Wadah Utama Lebar Penuh dengan Margin Kiri-Kanan Seimbang (px-5) -->
+        <div class="px-5 py-6 space-y-6 w-full">
+            <!-- Flash Message Alerts -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="p-4 rounded-xl text-sm font-medium flex items-center gap-3 shadow-sm
+                            {% if category == 'success' %} bg-emerald-50 text-emerald-800 border border-emerald-200
+                            {% else %} bg-rose-50 text-rose-800 border border-rose-200 {% endif %}">
+                            <i class="fa-solid fa-circle-check text-base"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- FORM INPUT INCOMING -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <form id="formIncoming" action="/gudang/incoming" method="POST" enctype="multipart/form-data" class="space-y-5">
+                    <!-- Baris 1: Tanggal (Dapat Back Date), Urutan Mobil, Supplier -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Tanggal Datang</label>
+                                <span class="text-[11px] text-blue-600 font-semibold italic">Dapat pilih tgl mundur</span>
+                            </div>
+                            <input type="date" name="tanggal_datang" id="inputTanggalDatang" value="{{ today }}" required
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Urutan Mobil (No. QAN)</label>
+                            <input type="number" id="urutan_mobil" name="urutan_mobil" min="1" max="99" required placeholder="Contoh: 1, 2"
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            <span id="qan_preview" class="text-xs text-blue-600 font-semibold mt-1 inline-block">Estimasi QAN: -</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Nama Supplier</label>
+                            <input type="text" name="supplier" required placeholder="Contoh: CAP, PT Indah"
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                        </div>
+                    </div>
+
+                    <!-- Baris 2: Nama Barang, No. SAP, & NO. LOT -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Nama Barang</label>
+                            <input type="text" name="nama_barang" required placeholder="Contoh: Stiker Kopiko Blanca Bag / ILNF"
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition font-medium">
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">No. SAP</label>
+                                <span class="text-[11px] text-slate-400 font-normal italic">(Opsional)</span>
+                            </div>
+                            <input type="text" name="no_sap" id="inputNoSap" placeholder="Ketik No. SAP jika ada..."
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition font-mono">
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">NO. LOT</label>
+                                <span class="text-[11px] text-slate-400 font-normal italic">Format: XX XX XX</span>
+                            </div>
+                            <input type="text" name="no_lot" id="inputNoLot" maxlength="8" placeholder="Contoh: 05 11 26"
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-mono font-bold text-blue-700 tracking-wider focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase transition">
+                        </div>
+                    </div>
+
+                    <!-- Pilihan Rak (Dropdown) + Detail Lokasi (Ketik Manual) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                                Pilih Kelompok Rak <span class="text-rose-500">*</span>
+                            </label>
+                            <select name="kelompok_rak" id="selectKelompokRak" required
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                                <option value="" disabled selected>-- Pilih Rak (A = SAP / B = NON SAP) --</option>
+                                <option value="RAK A">RAK A (SAP)</option>
+                                <option value="RAK B">RAK B (NON SAP)</option>
+                            </select>
+                            <span class="text-[11px] text-slate-500 mt-1 inline-block"></span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                                Detail Lokasi / Lantai (Ketik Manual) <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" name="detail_lokasi" id="inputDetailLokasi" required
+                                   placeholder="Ketik manual... Contoh: LANTAI 1 / LANTAI 2"
+                                   class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 uppercase focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                        </div>
+                    </div>
+
+                    <!-- Baris 3: Jumlah & Foto Stiker -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Jumlah Stiker (PCS)</label>
+                            <input type="number" name="jumlah" min="1" required placeholder="Contoh: 1000"
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition font-semibold">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Foto Stiker / Label Bongkaran</label>
+                            <input type="file" name="foto" accept="image/*"
+                                class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-300 rounded-xl p-1 bg-white">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition">
+                            <i class="fa-solid fa-plus mr-2"></i>Simpan Laporan Incoming
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- TABEL RIWAYAT INCOMING (PROPORSIONAL & UTUH TANPA TERPOTONG) -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-sm">Riwayat Kedatangan Stiker Terkini</h3>
+                    <span class="text-xs text-slate-400">Total Transaksi: {{ incoming_list|length }}</span>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-50 text-[11px] font-bold uppercase text-slate-500 tracking-wider border-b border-slate-200">
+                            <tr>
+                                <th class="px-3 py-3 whitespace-nowrap">No. QAN</th>
+                                <th class="px-3 py-3 whitespace-nowrap">Tanggal</th>
+                                <th class="px-3 py-3">Supplier</th>
+                                <th class="px-3 py-3 min-w-[160px]">Nama Barang</th>
+                                <th class="px-3 py-3 whitespace-nowrap">No. SAP</th>
+                                <th class="px-3 py-3 whitespace-nowrap">NO. LOT</th>
+                                <th class="px-3 py-3 whitespace-nowrap">Lokasi Rak</th>
+                                <th class="px-3 py-3 text-center whitespace-nowrap">Jumlah</th>
+                                <th class="px-3 py-3 text-center whitespace-nowrap">Foto</th>
+                                <th class="px-3 py-3 whitespace-nowrap">Diinput Oleh</th>
+                                <th class="px-3 py-3 whitespace-nowrap">Waktu Input</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for item in incoming_list %}
+                            <tr class="hover:bg-slate-50/80 transition">
+                                <td class="px-3 py-3.5 font-bold text-blue-600 whitespace-nowrap">{{ item.no_qan }}</td>
+                                <td class="px-3 py-3.5 text-slate-600 whitespace-nowrap">{{ item.tanggal_datang }}</td>
+                                <td class="px-3 py-3.5 font-semibold text-slate-800">{{ item.supplier }}</td>
+                                <td class="px-3 py-3.5 font-bold text-slate-800 leading-snug">{{ item.nama_barang or '-' }}</td>
+                                <td class="px-3 py-3.5 font-mono whitespace-nowrap">
+                                    {% if item.no_sap %}
+                                        <span class="text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                            {{ item.no_sap }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-slate-400">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-3 py-3.5 font-mono font-bold text-slate-700 whitespace-nowrap">
+                                    <span class="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                        {{ item.no_lot or '-' }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-3.5 font-bold text-rose-600 whitespace-nowrap">
+                                    {{ item.lokasi_rak or '-' }}
+                                </td>
+                                <td class="px-3 py-3.5 text-center font-bold text-emerald-600 whitespace-nowrap">
+                                    +{{ "{:,}".format(item.jumlah) }} PCS
+                                </td>
+                                <td class="px-3 py-3.5 text-center whitespace-nowrap">
+                                    {% if item.foto_bukti %}
+                                        <button type="button" onclick="bukaModalFoto('/uploads/{{ item.foto_bukti }}', '{{ item.no_qan }}')" 
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold rounded-lg transition whitespace-nowrap">
+                                            <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom
+                                        </button>
+                                    {% else %}
+                                        <span class="text-slate-400">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-3 py-3.5 text-slate-600 whitespace-nowrap">{{ item.diinput_oleh }}</td>
+                                <td class="px-3 py-3.5 text-slate-400 font-mono text-[11px] whitespace-nowrap">{{ item.waktu_input }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="11" class="px-6 py-8 text-center text-slate-400">Belum ada data kedatangan stiker yang dicatat.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL ZOOM INTERAKTIF -->
+    <div id="modalFoto" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="tutupModalFoto()">
+        <div class="relative max-w-4xl w-full max-h-[92vh] bg-slate-900 rounded-2xl p-4 shadow-2xl flex flex-col border border-slate-800" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800 gap-3">
+                <span id="modalFotoTitle" class="text-xs font-bold text-slate-200 truncate font-mono"></span>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="ubahZoom(-0.25)" title="Perkecil (-)"
+                        class="p-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <span id="zoomLevelText" class="text-xs font-mono font-bold text-blue-400 w-12 text-center">100%</span>
+                    <button type="button" onclick="ubahZoom(0.25)" title="Perbesar (+)"
+                        class="p-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button type="button" onclick="resetZoom()" title="Reset Ukuran"
+                        class="p-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button type="button" onclick="tutupModalFoto()" class="ml-2 bg-rose-600 hover:bg-rose-700 text-white p-1.5 px-2.5 rounded-lg text-xs font-bold">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="zoomContainer" class="flex-1 max-h-[75vh] overflow-hidden flex items-center justify-center p-2 bg-slate-950 rounded-xl mt-3 select-none relative">
+                <img id="modalFotoImg" src="" alt="Foto Bukti" 
+                    class="max-h-[68vh] w-auto rounded-lg object-contain transition-transform duration-100 ease-out origin-center cursor-grab">
+            </div>
+            
+            <p class="text-[10px] text-slate-400 mt-2 text-center italic">* Putar scroll mouse pada bagian sudut untuk zoom, atau tahan klik kiri untuk menggeser gambar.</p>
+        </div>
+    </div>
+
+    <!-- SCRIPT ESTIMASI QAN BACK DATE, RAK OTOMATIS, FORMAT LOT, & ZOOM -->
+    <script>
+        // 1. Estimasi QAN Otomatis (Mengikuti Tanggal Datang yang dipilih / Back Date)
+        const inputTanggal = document.getElementById('inputTanggalDatang');
+        const inputUrutan = document.getElementById('urutan_mobil');
+        const qanPreview = document.getElementById('qan_preview');
+
+        function updateEstimasiQAN() {
+            const tglVal = inputTanggal.value;
+            const urutanVal = inputUrutan.value;
+            if (tglVal && urutanVal) {
+                const parts = tglVal.split('-');
+                const nn = String(urutanVal).padStart(2, '0');
+                qanPreview.innerText = `Estimasi QAN: ${parts[2]} ${parts[1]} ${nn}`;
+            } else {
+                qanPreview.innerText = 'Estimasi QAN: -';
+            }
+        }
+        inputTanggal.addEventListener('change', updateEstimasiQAN);
+        inputUrutan.addEventListener('input', updateEstimasiQAN);
+
+        // 2. Auto-Format Spasi NO. LOT (Format: XX XX XX)
+        const inputLot = document.getElementById('inputNoLot');
+        if (inputLot) {
+            inputLot.addEventListener('input', function(e) {
+                let val = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                let parts = [];
+                for (let i = 0; i < val.length && i < 6; i += 2) {
+                    parts.push(val.substring(i, i + 2));
+                }
+                e.target.value = parts.join(' ');
+            });
+        }
+
+        // 3. Logika Zoom & Drag/Pan Bebas
+        let skalaZoom = 1, transX = 0, transY = 0, isDragging = false, startX = 0, startY = 0;
+        const container = document.getElementById('zoomContainer');
+        const imgZoom = document.getElementById('modalFotoImg');
+
+        function bukaModalFoto(src, qan) {
+            imgZoom.src = src;
+            document.getElementById('modalFotoTitle').innerText = `Foto Label - No. QAN: ${qan}`;
+            resetZoom();
+            document.getElementById('modalFoto').classList.remove('hidden');
+        }
+
+        function perbaruiTransformasi() {
+            imgZoom.style.transform = `translate(${transX}px, ${transY}px) scale(${skalaZoom})`;
+            document.getElementById('zoomLevelText').innerText = `${Math.round(skalaZoom * 100)}%`;
+            imgZoom.style.cursor = skalaZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default';
+        }
+
+        function ubahZoom(delta, mouseX = null, mouseY = null) {
+            const zoomLama = skalaZoom;
+            skalaZoom = Math.min(Math.max(0.5, skalaZoom + delta), 4.5);
+            if (mouseX !== null && mouseY !== null) {
+                const ratio = skalaZoom / zoomLama;
+                transX = mouseX - (mouseX - transX) * ratio;
+                transY = mouseY - (mouseY - transY) * ratio;
+            } else if (skalaZoom <= 1) {
+                transX = 0; transY = 0;
+            }
+            perbaruiTransformasi();
+        }
+
+        function resetZoom() {
+            skalaZoom = 1; transX = 0; transY = 0;
+            perbaruiTransformasi();
+        }
+
+        function tutupModalFoto() {
+            document.getElementById('modalFoto').classList.add('hidden');
+            resetZoom();
+        }
+
+        container.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - rect.width / 2;
+            const mouseY = e.clientY - rect.top - rect.height / 2;
+            ubahZoom(e.deltaY < 0 ? 0.25 : -0.25, mouseX, mouseY);
+        });
+
+        imgZoom.addEventListener('mousedown', function(e) {
+            if (skalaZoom <= 1) return;
+            isDragging = true;
+            startX = e.clientX - transX;
+            startY = e.clientY - transY;
+            imgZoom.style.cursor = 'grabbing';
+            imgZoom.style.transition = 'none';
+        });
+
+        window.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            transX = e.clientX - startX;
+            transY = e.clientY - startY;
+            perbaruiTransformasi();
+        });
+
+        window.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                imgZoom.style.cursor = 'grab';
+                imgZoom.style.transition = 'transform 0.1s ease-out';
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') tutupModalFoto();
+        });
+
+        // Mencegah form tersimpan otomatis saat menekan tombol Enter di kolom input
+        const formIncoming = document.getElementById('formIncoming');
+        if (formIncoming) {
+            formIncoming.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        function toggleSidebarMobile() {
+          document.getElementById('mobileSidebar').classList.toggle('-translate-x-full');
+          document.getElementById('sidebarBackdrop').classList.toggle('hidden');
+      }
+
+    </script>
+</body>
+</html>

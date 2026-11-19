@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pengajuan Stiker - POV Produksi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50 flex h-screen font-sans overflow-hidden">
+
+    <!-- SIDEBAR POV PRODUKSI -->
+    <!-- BACKDROP MOBILE -->
+  <div id="sidebarBackdrop" onclick="toggleSidebarMobile()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
+
+  <!-- SIDEBAR POV PRODUKSI -->
+  <aside id="mobileSidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shadow-xl flex-shrink-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-200 ease-in-out">
+        <div>
+            <div class="p-6 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-emerald-600 rounded-lg text-white">
+                        <i class="fa-solid fa-industry"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-white font-bold tracking-wide">STOK STIKER</h2>
+                        <span class="text-xs text-emerald-400 font-medium">POV Produksi</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigasi Menu (Lurus Sejajar Presisi) -->
+            <nav class="p-4 space-y-1.5 text-sm font-medium">
+                <!-- 1. Pengajuan Stiker (Aktif Hijau) -->
+                <a href="/produksi/pengajuan" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-600 text-white shadow-md transition">
+                    <i class="fa-solid fa-truck-ramp-box w-5 text-center text-base"></i>
+                    <span>Pengajuan Stiker</span>
+                </a>
+
+                <!-- 2. Pemakaian Stiker (Tidak Aktif) -->
+                <a href="/produksi/pemakaian" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-clipboard-list w-5 text-center text-base"></i>
+                    <span>Pemakaian Stiker</span>
+                </a>
+
+                <!-- 3. Stok & Laporan (Tidak Aktif) -->
+                <a href="/produksi/stok" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-chart-column w-5 text-center text-base"></i>
+                    <span>Stok & Laporan</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400">Login Sebagai:</p>
+                    <p class="text-sm font-bold text-white">{{ session.get('nama_lengkap', 'Operator Produksi') }}</p>
+                </div>
+                <a href="/logout" title="Logout" class="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition">
+                    <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- KONTEN UTAMA (KATALOG KEDATANGAN STIKER) -->
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-sm">
+          <div class="flex items-center gap-3">
+              <button type="button" onclick="toggleSidebarMobile()" class="md:hidden p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">
+                  <i class="fa-solid fa-bars text-base"></i>
+              </button>
+              <h1 class="text-base md:text-xl font-bold text-slate-800">Pengajuan Stiker (Kedatangan Gudang)</h1>
+          </div>
+
+          <!-- Search Bar Nama Barang / Supplier / No. QAN -->
+          <div class="relative w-full sm:w-72">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+              </span>
+              <input type="text" id="searchPengajuanInput" onkeyup="filterKartuPengajuan()"
+                     placeholder="Cari nama barang, supplier, QAN..."
+                     class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+          </div>
+      </header>
+
+        <div class="px-5 py-6 w-full space-y-6">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-6 p-4 rounded-xl text-sm font-medium flex items-center gap-3 bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
+                            <i class="fa-solid fa-circle-check text-base"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- DAFTAR KATALOG KEDATANGAN STIKER -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {% for inc in incomings %}
+                <div class="card-pengajuan bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between"
+                    data-search="{{ (inc.nama_barang or '')|lower }} {{ (inc.supplier or '')|lower }} {{ (inc.no_qan or '')|lower }}">
+                    <div>
+                        <!-- Foto Stiker -->
+                        <div class="relative h-44 bg-slate-100 flex items-center justify-center overflow-hidden border-b border-slate-100 group">
+                            {% if inc.foto_bukti %}
+                                <img src="/uploads/{{ inc.foto_bukti }}" alt="Foto Kedatangan" 
+                                    onclick="bukaModalFoto('/uploads/{{ inc.foto_bukti }}', '{{ inc.no_qan }}')"
+                                    class="w-full h-full object-cover cursor-pointer transition duration-200 {% if inc.sisa_tersedia <= 0 %}grayscale opacity-60{% else %}group-hover:scale-105{% endif %}" 
+                                    title="Klik untuk memperbesar gambar">
+                                
+                                <button type="button" onclick="bukaModalFoto('/uploads/{{ inc.foto_bukti }}', '{{ inc.no_qan }}')" 
+                                        class="absolute bottom-2 right-2 bg-slate-900/70 hover:bg-slate-900 text-white text-[11px] px-2 py-1 rounded-md flex items-center gap-1 backdrop-blur-sm shadow-sm transition z-10">
+                                    <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom
+                                </button>
+                            {% else %}
+                                <div class="text-center text-slate-300">
+                                    <i class="fa-solid fa-image text-4xl mb-1"></i>
+                                    <p class="text-[11px] font-medium">Tidak ada foto</p>
+                                </div>
+                            {% endif %}
+
+                            <!-- LABEL MERAH HABIS -->
+                            {% if inc.sisa_tersedia <= 0 %}
+                                <div class="absolute top-3 left-3 bg-rose-600 text-white font-extrabold text-[11px] px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1 z-10 uppercase tracking-wider animate-pulse">
+                                    <i class="fa-solid fa-ban"></i> HABIS
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Tanggal Datang -->
+                            <span class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-slate-700 text-[11px] font-semibold px-2 py-0.5 rounded-md shadow-sm pointer-events-none z-10">
+                                {{ inc.tanggal_datang }}
+                            </span>
+                        </div>
+
+                        <!-- Detail Informasi Stiker -->
+                        <div class="p-4 space-y-2">
+                            <span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md uppercase tracking-wide inline-block whitespace-nowrap">
+                                NO. QAN: {{ inc.no_qan }}
+                            </span>
+
+                            <div class="pt-1">
+                                <span class="text-[11px] text-slate-400 block font-medium">Nama Supplier:</span>
+                                <h3 class="text-sm font-bold text-slate-800">{{ inc.supplier }}</h3>
+                            </div>
+
+                            {% if inc.nama_barang %}
+                            <div class="pt-0.5">
+                                <span class="text-[11px] text-slate-400 block font-medium">Nama Barang:</span>
+                                <p class="text-xs font-semibold text-slate-700 leading-snug line-clamp-2">{{ inc.nama_barang }}</p>
+                            </div>
+                            {% endif %}
+
+                            <!-- Saldo Kedatangan & Sisa Kuota -->
+                            <div class="pt-2 border-t border-slate-100 space-y-1 text-xs">
+                                <div class="flex items-center justify-between text-slate-500">
+                                    <span>Incoming Awal:</span>
+                                    <span class="font-semibold text-slate-700">{{ "{:,}".format(inc.jumlah) }} PCS</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-slate-700">Sisa Tersedia:</span>
+                                    {% if inc.sisa_tersedia > 0 %}
+                                        <span class="font-bold text-emerald-600">
+                                            {{ "{:,}".format(inc.sisa_tersedia) }} PCS
+                                        </span>
+                                    {% else %}
+                                        <span class="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                            0 PCS (HABIS)
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Aksi Permintaan & Status -->
+                    <div class="p-4 pt-0">
+                        <div class="grid grid-cols-2 gap-2 mt-2">
+                            {% if inc.sisa_tersedia > 0 %}
+                                <button type="button" 
+                                    onclick="bukaModalAjukan('{{ inc.id }}', '{{ inc.no_qan }}', '{{ inc.supplier }}', '{{ inc.jumlah }}', '{{ inc.sisa_tersedia }}')" 
+                                    class="py-2.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm rounded-xl text-xs font-bold transition text-center">
+                                    Ajukan Permintaan
+                                </button>
+                            {% else %}
+                                <button type="button" disabled 
+                                    class="py-2.5 px-2 bg-rose-100 text-rose-500 border border-rose-200 cursor-not-allowed rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-lock text-[10px]"></i> Stok Habis
+                                </button>
+                            {% endif %}
+
+                            <button type="button" onclick="bukaModalStatus('{{ inc.id }}', '{{ inc.no_qan }}')" 
+                                class="py-2.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition text-center border border-slate-200">
+                                Status
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-span-full py-16 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+                    <i class="fa-solid fa-box-open text-5xl mb-3 text-slate-300"></i>
+                    <p class="text-base font-semibold text-slate-600">Belum Ada Kedatangan Stiker</p>
+                    <p class="text-xs text-slate-400 mt-1">Data stiker dari gudang akan otomatis tampil di sini.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL AJUKAN PERMINTAAN -->
+    <div id="modalAjukan" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-bold text-slate-800 text-base">Form Pengajuan Stiker</h3>
+                <button type="button" onclick="tutupModalAjukan()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form action="/produksi/pengajuan/submit" method="POST" class="mt-4 space-y-3.5 text-xs">
+                <input type="hidden" name="incoming_id" id="form_incoming_id">
+                <input type="hidden" name="no_qan" id="form_no_qan">
+
+                <div class="grid grid-cols-3 gap-2.5">
+                    <div>
+                        <label class="block font-bold text-slate-600 mb-1">Supplier</label>
+                        <input type="text" name="supplier" id="form_supplier" readonly class="w-full px-2.5 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 font-semibold cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-600 mb-1">Incoming Awal</label>
+                        <input type="text" id="form_incoming_jumlah" readonly class="w-full px-2.5 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-medium cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-emerald-700 mb-1">Sisa Kuota</label>
+                        <input type="text" id="form_sisa_kuota" readonly class="w-full px-2.5 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 font-bold cursor-not-allowed">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Pilih / Ketik Produk</label>
+                    <input list="list_produk" id="input_produk" onchange="pilihProduk(this.value)" placeholder="Ketik nama produk..." required
+                        class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <datalist id="list_produk">
+                        {% for p in master_produk %}
+                            <option value="{{ p.nama_produk }} ({{ p.sku }}) | {{ p.buyer }}" data-sku="{{ p.sku }}" data-buyer="{{ p.buyer }}" data-nama="{{ p.nama_produk }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+
+                <input type="hidden" name="nama_produk" id="form_nama_produk">
+                <input type="hidden" name="sku" id="form_sku">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-600 mb-1">Nama Buyer (Otomatis)</label>
+                        <input type="text" name="buyer" id="form_buyer" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-medium cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Jenis Stiker</label>
+                        <select name="jenis_stiker" id="form_jenis_stiker" onchange="pilihJenisStiker(this)" required
+                            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold text-blue-600">
+                            <option value="" disabled selected>Pilih Produk Dahulu</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">No. SAS / SAP (Otomatis)</label>
+                    <input type="text" name="no_sas_sap" id="form_sas_sap" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 cursor-not-allowed">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Jumlah yang Dibutuhkan (PCS)</label>
+                    <input type="number" name="jumlah_diminta" id="form_input_jumlah" min="1" required placeholder="Contoh: 200"
+                    class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-semibold">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="tutupModalAjukan()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-semibold">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold shadow-md">Kirim Pengajuan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL STATUS TRANSAKSI -->
+    <div id="modalStatus" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">Status Pengajuan Stiker</h3>
+                    <p id="status_qan_title" class="text-xs text-blue-600 font-semibold"></p>
+                </div>
+                <button type="button" onclick="tutupModalStatus()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto mt-4">
+                <div id="statusListContainer" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL VIEWER ZOOM GAMBAR (TERSEMBUNYI SAAT HALAMAN DIBUKA) -->
+    <div id="imageModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex flex-col items-center justify-center p-4">
+        <div class="w-full max-w-4xl flex items-center justify-between text-white pb-3 flex-shrink-0">
+            <span id="modalTitle" class="font-bold text-sm tracking-wide">Detail Foto Stiker</span>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="zoomIn()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm w-9 h-9 flex items-center justify-center" title="Perbesar (Zoom In)">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+                <button type="button" onclick="zoomOut()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm w-9 h-9 flex items-center justify-center" title="Perkecil (Zoom Out)">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+                <button type="button" onclick="resetZoom()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm w-9 h-9 flex items-center justify-center font-bold" title="Reset Ukuran (C)">
+                    C
+                </button>
+                <button type="button" onclick="tutupModalFoto()" class="p-2 bg-rose-600 hover:bg-rose-700 rounded-lg text-sm ml-2 w-9 h-9 flex items-center justify-center" title="Tutup">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="zoomViewport" class="w-full max-w-4xl h-[75vh] overflow-hidden flex items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-700 relative cursor-grab active:cursor-grabbing select-none p-4">
+            <img id="modalImg" src="" alt="Foto Stiker" 
+                 class="transition-transform duration-75 select-none max-h-full max-w-full object-contain pointer-events-none" 
+                 style="transform: translate(0px, 0px) scale(1);">
+        </div>
+        
+        <p class="text-xs text-slate-400 mt-2">Gunakan <strong>Scroll Mouse</strong> untuk zoom ke kursor & <strong>Klik + Tahan (Drag)</strong> untuk menggeser foto ke segala sudut.</p>
+    </div>
+
+    <!-- SCRIPT JAVASCRIPT -->
+    <script>
+        let currentStikerVariants = [];
+
+        function bukaModalAjukan(id, qan, supplier, jumlah, sisa) {
+            document.getElementById('form_incoming_id').value = id;
+            document.getElementById('form_no_qan').value = qan;
+            document.getElementById('form_supplier').value = supplier;
+            document.getElementById('form_incoming_jumlah').value = `${Number(jumlah).toLocaleString()} PCS`;
+            document.getElementById('form_sisa_kuota').value = `${Number(sisa).toLocaleString()} PCS`;
+            
+            const inputJumlah = document.getElementById('form_input_jumlah');
+            inputJumlah.value = '';
+            inputJumlah.max = sisa;
+            inputJumlah.placeholder = `Maksimal: ${Number(sisa).toLocaleString()} PCS`;
+
+            document.getElementById('input_produk').value = '';
+            document.getElementById('form_nama_produk').value = '';
+            document.getElementById('form_sku').value = '';
+            document.getElementById('form_buyer').value = '';
+            document.getElementById('form_jenis_stiker').innerHTML = '<option value="" disabled selected>Pilih Produk Dahulu</option>';
+            document.getElementById('form_sas_sap').value = '';
+
+            document.getElementById('modalAjukan').classList.remove('hidden');
+        }
+        function tutupModalAjukan() { document.getElementById('modalAjukan').classList.add('hidden'); }
+
+        function pilihProduk(val) {
+            const list = document.getElementById('list_produk');
+            let selectedSku = null;
+            let selectedBuyer = null;
+
+            for (let option of list.options) {
+                if (option.value === val) {
+                    selectedSku = option.dataset.sku;
+                    selectedBuyer = option.dataset.buyer;
+                    document.getElementById('form_nama_produk').value = option.dataset.nama;
+                    document.getElementById('form_sku').value = selectedSku;
+                    document.getElementById('form_buyer').value = selectedBuyer;
+                    break;
+                }
+            }
+
+            if (selectedSku) {
+                fetch(`/api/produk/${selectedSku}/stiker`)
+                    .then(res => res.json())
+                    .then(data => {
+                        currentStikerVariants = data;
+                        let selectStiker = document.getElementById('form_jenis_stiker');
+                        selectStiker.innerHTML = '<option value="" disabled selected>Pilih Jenis Stiker...</option>';
+                        
+                        data.forEach(item => {
+                            selectStiker.innerHTML += `<option value="${item.jenis_stiker}">${item.jenis_stiker}</option>`;
+                        });
+
+                        document.getElementById('form_sas_sap').value = '';
+                    });
+            }
+        }
+
+        function pilihJenisStiker(el) {
+            let jenis = el.value;
+            let found = currentStikerVariants.find(item => item.jenis_stiker === jenis);
+            if (found) {
+                document.getElementById('form_sas_sap').value = found.no_sas_sap;
+            }
+        }
+
+        function bukaModalStatus(incomingId, qan) {
+            document.getElementById('status_qan_title').innerText = `NO. QAN: ${qan}`;
+            const container = document.getElementById('statusListContainer');
+            container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Memuat data status...</p>';
+            document.getElementById('modalStatus').classList.remove('hidden');
+
+            fetch(`/api/incoming/${incomingId}/status_produksi`)
+                .then(res => res.json())
+                .then(data => {
+                    container.innerHTML = '';
+                    if (data.length === 0) {
+                        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">Belum ada pengajuan stiker untuk kedatangan ini.</p>';
+                        return;
+                    }
+
+                    data.forEach(item => {
+                        let badgeColor = 'bg-amber-50 text-amber-700 border-amber-200';
+                        if (item.status === 'Disetujui') badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                        if (item.status === 'Menunggu Konfirmasi Produksi') badgeColor = 'bg-blue-50 text-blue-700 border-blue-200';
+                        if (item.status === 'Ditolak') badgeColor = 'bg-rose-50 text-rose-700 border-rose-200';
+                        if (item.status === 'Selesai' || item.status === 'Close / Selesai') badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+                        let tombolTerimaHtml = '';
+                        if (item.status === 'Menunggu Konfirmasi Produksi') {
+                            tombolTerimaHtml = `
+                                <div class="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between gap-2">
+                                    <span class="text-[11px] font-semibold text-blue-700">
+                                        <i class="fa-solid fa-truck-fast mr-1"></i> Stiker sudah diserahkan Gudang. Silakan konfirmasi:
+                                    </span>
+                                    <form action="/produksi/pengajuan/terima" method="POST" onsubmit="return confirm('Konfirmasi bahwa stiker fisik sudah diterima oleh Produksi?');">
+                                        <input type="hidden" name="permintaan_id" value="${item.id}">
+                                        <button type="submit" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1.5 whitespace-nowrap">
+                                            <i class="fa-solid fa-circle-check"></i> Diterima
+                                        </button>
+                                    </form>
+                                </div>
+                            `;
+                        }
+
+                        container.innerHTML += `
+                            <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1.5">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="font-bold text-slate-800">${item.nama_produk}</span>
+                                    <span class="px-2.5 py-0.5 rounded-full font-semibold border whitespace-nowrap ${badgeColor}">${item.status}</span>
+                                </div>
+                                <div class="text-slate-500">
+                                    Jenis Stiker: <span class="font-semibold text-blue-600">${item.jenis_stiker}</span> | 
+                                    Diminta: <span class="font-bold text-slate-800">${Number(item.jumlah_diminta).toLocaleString()} PCS</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 pt-1 border-t border-slate-200">
+                                    Diajukan: ${item.diajukan_pada} oleh ${item.pengaju}
+                                    ${item.waktu_respon ? `<br>Direspon Gudang: ${item.waktu_respon} oleh ${item.petugas_respon}` : ''}
+                                    ${item.waktu_diterima_produksi ? `<br><span class="text-emerald-700 font-semibold">Diterima Produksi: ${item.waktu_diterima_produksi} oleh ${item.penerima_produksi}</span>` : ''}
+                                    ${item.alasan_tolak && item.alasan_tolak !== '-' ? `<br><span class="text-rose-600 font-semibold">Alasan: ${item.alasan_tolak}</span>` : ''}
+                                </div>
+                                ${tombolTerimaHtml}
+                            </div>
+                        `;
+                    });
+                });
+        }
+        function tutupModalStatus() { document.getElementById('modalStatus').classList.add('hidden'); }
+
+        // Kontrol Zoom Gambar Interaktif (Drag & Pan + Zoom to Cursor)
+        let currentScale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX = 0, startY = 0;
+
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImg');
+        const modalTitle = document.getElementById('modalTitle');
+        const zoomViewport = document.getElementById('zoomViewport');
+
+        function updateTransform() {
+            modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentScale})`;
+        }
+
+        function bukaModalFoto(src, qan) {
+            modalImg.src = src;
+            modalTitle.innerText = `Foto Label Stiker - No. QAN: ${qan}`;
+            resetZoom();
+            modal.classList.remove('hidden');
+        }
+
+        function tutupModalFoto() {
+            modal.classList.add('hidden');
+            modalImg.src = '';
+        }
+
+        function zoomIn() {
+            currentScale = Math.min(currentScale + 0.3, 6);
+            updateTransform();
+        }
+
+        function zoomOut() {
+            currentScale = Math.max(1, currentScale - 0.3);
+            if (currentScale === 1) {
+                translateX = 0;
+                translateY = 0;
+            }
+            updateTransform();
+        }
+
+        function resetZoom() {
+            currentScale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        }
+
+        // Drag & Pan Mouse Bebas ke Segala Sudut
+        zoomViewport.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Zoom to Cursor (Scroll Wheel)
+        zoomViewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = zoomViewport.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - rect.width / 2;
+            const mouseY = e.clientY - rect.top - rect.height / 2;
+
+            const zoomFactor = e.deltaY < 0 ? 1.25 : 0.8;
+            const newScale = Math.min(Math.max(1, currentScale * zoomFactor), 6);
+
+            if (newScale !== currentScale) {
+                if (newScale === 1) {
+                    translateX = 0;
+                    translateY = 0;
+                } else {
+                    translateX -= (mouseX - translateX) * (zoomFactor - 1);
+                    translateY -= (mouseY - translateY) * (zoomFactor - 1);
+                }
+                currentScale = newScale;
+                updateTransform();
+            }
+        }, { passive: false });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                tutupModalFoto();
+                tutupModalAjukan();
+                tutupModalStatus();
+            }
+        });
+
+        function filterKartuPengajuan() {
+            const keyword = document.getElementById('searchPengajuanInput').value.toLowerCase().trim();
+            const cards = document.querySelectorAll('.card-pengajuan');
+
+            cards.forEach(card => {
+                const teks = card.dataset.search || card.innerText.toLowerCase();
+                card.style.display = teks.includes(keyword) ? '' : 'none';
+            });
+        }
+
+        function toggleSidebarMobile() {
+          document.getElementById('mobileSidebar').classList.toggle('-translate-x-full');
+          document.getElementById('sidebarBackdrop').classList.toggle('hidden');
+      }
+
+    </script>
+</body>
+</html>

@@ -21,7 +21,7 @@ os.makedirs(UPLOAD_PRODUKSI_FOLDER, exist_ok=True)
 # ==========================================
 # 2. INISIALISASI FLASK
 # ==========================================
-app = Flask(__name__, static_url_path='/uploads', static_folder=UPLOAD_FOLDER)
+app = Flask(__name__, static_url_path='/uploads', static_folder=UPLOAD_FOLDER, template_folder=BASE_DIR)
 app.secret_key = 'kunci-rahasia-stiker-produksi'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 FITUR_STOCK_OPNAME = True

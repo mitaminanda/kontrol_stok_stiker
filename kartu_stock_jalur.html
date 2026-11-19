@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kartu Stock Jalur - {{ item.no_qan }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 8mm 10mm 8mm 10mm;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; }
+            .sheet { border: none !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+        }
+        body {
+            font-family: "Times New Roman", Times, serif;
+            color: #000;
+        }
+        .tbl-grid, .tbl-grid th, .tbl-grid td {
+            border: 1px solid #000;
+            border-collapse: collapse;
+        }
+        .border-dotted-cell {
+            border: 1px dotted #555 !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 flex flex-col items-center">
+
+    <!-- Tombol Aksi Layar -->
+    <div class="no-print w-full max-w-5xl flex items-center justify-between bg-white p-3 rounded-xl shadow-sm border border-slate-200 mb-3">
+        <a href="/stok/katalog" class="text-xs font-bold text-slate-600 hover:text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-arrow-left"></i> Kembali ke Stok & Laporan
+        </a>
+        <div class="flex items-center gap-2">
+            <button onclick="window.print()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition">
+                <i class="fa-solid fa-print"></i> Cetak / Simpan PDF (A4 Landscape)
+            </button>
+        </div>
+    </div>
+
+    <!-- LEMBAR FORMULIR KARTU STOCK JALUR SESUAI EXCEL -->
+    <div class="sheet bg-white w-full max-w-5xl p-6 border border-slate-300 shadow-md">
+        
+        <!-- Kode Dokumen Kanan Atas -->
+        <div class="text-right text-[11px] font-bold font-sans tracking-tight mb-1">
+            MAY/PRC/LLA/CFG/TCK/IMDADM/09/003-01-1
+        </div>
+
+        <!-- 1. KOP SURAT / KOTAK HEADER (Sesuai Excel) -->
+        <div class="border border-black flex mb-2">
+            <!-- Logo Mayora -->
+            <div class="w-28 p-2 border-r border-black flex flex-col items-center justify-center text-center">
+                <div class="w-10 h-7 flex flex-col items-center justify-center mb-0.5">
+                    <!-- Bentuk Logo Mayora Merah -->
+                    <div class="w-8 h-4 bg-red-600 rounded-t-full mb-0.5"></div>
+                    <div class="flex gap-1 justify-center">
+                        <div class="w-3.5 h-3 bg-red-600 rounded-bl-sm"></div>
+                        <div class="w-3.5 h-3 bg-red-600 rounded-br-sm"></div>
+                    </div>
+                </div>
+                <div class="font-bold text-[10px] text-red-600 tracking-wider leading-none font-sans">MAYORA</div>
+                <div class="text-[8px] text-red-600 tracking-wider font-semibold font-sans">GROUP</div>
+            </div>
+
+            <!-- Judul PT Torabika Merah -->
+            <div class="flex-1 p-2 text-center flex flex-col justify-center">
+                <div class="text-base font-bold tracking-wider text-red-600 font-serif">PT. TORABIKA EKA SEMESTA</div>
+                <div class="text-xs font-bold tracking-wide text-red-600 font-serif">DIVISI GROUND COFFEE</div>
+                <div class="text-sm font-bold tracking-wider text-red-600 underline font-serif mt-0.5">Kartu Stock Jalur</div>
+            </div>
+        </div>
+
+        <!-- 2. IDENTITAS BARANG -->
+        <div class="text-[11px] font-serif mb-2 space-y-0.5">
+            <div class="flex items-center">
+                <span class="w-24">Nama Barang</span>
+                <span class="font-bold">: {{ item.nama_barang or '__________________' }}</span>
+            </div>
+            <div class="flex items-center">
+                <span class="w-24">Kode SAP</span>
+                <span class="font-bold">: {{ item.no_sap or '__________________' }}</span>
+            </div>
+            <div class="flex items-center">
+                <span class="w-24">Periode</span>
+                <span class="font-bold">: {{ periode or '__________________' }}</span>
+            </div>
+        </div>
+
+        <!-- 3. TABEL UTAMA SESUAI FORMAT EXCEL ASLI -->
+        <table class="w-full tbl-grid text-[10px] text-center">
+            <thead>
+                <tr class="font-bold">
+                    <th class="w-24 p-1">Tgl. Datang</th>
+                    <th class="w-28 p-1" rowspan="2">No. QAN Barang</th>
+                    <th class="w-20 p-1" rowspan="2">Suplier</th>
+                    <th class="w-16 p-1" rowspan="2">Jumlah</th>
+                    <th class="p-1" colspan="10">Pengiriman</th>
+                </tr>
+                <tr class="font-bold">
+                    <th class="p-0.5 text-[9px]">Expiry date</th>
+                    <th class="w-16 p-0.5 text-left pl-1"></th>
+                    {% for i in range(1, 10) %}
+                    <th class="w-12 p-0.5"></th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <!-- BLOK 1: Data Incoming Utama + 9 Slot Pengiriman Horizontal -->
+                <tr>
+                    <td class="p-1 font-semibold" style="height: 22px;">{{ item.tanggal_datang }}</td>
+                    <td rowspan="3" class="p-1 font-bold text-xs align-middle font-mono">{{ item.no_qan }}</td>
+                    <td rowspan="3" class="p-1 font-bold uppercase align-middle">{{ item.supplier }}</td>
+                    <td rowspan="3" class="p-1 font-bold text-xs align-middle">{{ "{:,}".format(item.jumlah) }}</td>
+                    
+                    <td class="font-bold text-left pl-1">Tanggal</td>
+                    {% for col in range(9) %}
+                    <td class="font-mono">{% if transaksi[col] %}{{ transaksi[col].tanggal }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="p-0.5 font-mono text-[9px]" style="height: 22px;">{{ item.no_lot or '-' }}</td>
+                    <td class="font-bold text-left pl-1">Jumlah</td>
+                    {% for col in range(9) %}
+                    <td class="font-semibold">{% if transaksi[col] %}{{ "{:,}".format(transaksi[col].jumlah) }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="p-0.5" style="height: 22px;"></td>
+                    <td class="font-bold text-left pl-1">Sisa stock</td>
+                    {% for col in range(9) %}
+                    <td class="font-bold">{% if transaksi[col] %}{{ "{:,}".format(transaksi[col].sisa_stock) }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+
+                <!-- BLOK 2 s/d 8 (Baris Grid Lanjutan Sesuai Excel Asli) -->
+                {% for b in range(1, 8) %}
+                <tr>
+                    <td class="border-dotted-cell" style="height: 22px;"></td>
+                    <td rowspan="3" class="border-dotted-cell"></td>
+                    <td rowspan="3" class="border-dotted-cell"></td>
+                    <td rowspan="3" class="border-dotted-cell"></td>
+                    
+                    <td class="font-bold text-left pl-1">Tanggal</td>
+                    {% for col in range(9) %}
+                    {% set idx = (b * 9) + col %}
+                    <td class="border-dotted-cell font-mono">{% if transaksi[idx] %}{{ transaksi[idx].tanggal }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="border-dotted-cell" style="height: 22px;"></td>
+                    <td class="font-bold text-left pl-1">Jumlah</td>
+                    {% for col in range(9) %}
+                    {% set idx = (b * 9) + col %}
+                    <td class="border-dotted-cell font-semibold">{% if transaksi[idx] %}{{ "{:,}".format(transaksi[idx].jumlah) }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="border-dotted-cell" style="height: 22px;"></td>
+                    <td class="font-bold text-left pl-1">Sisa stock</td>
+                    {% for col in range(9) %}
+                    {% set idx = (b * 9) + col %}
+                    <td class="border-dotted-cell font-bold">{% if transaksi[idx] %}{{ "{:,}".format(transaksi[idx].sisa_stock) }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 4. TANDA TANGAN (Sesuai Kolom Excel) -->
+        <div class="flex justify-between items-center text-xs mt-4 px-12">
+            <div class="text-center">
+                <div class="mb-10">Dilaporkan oleh</div>
+                <div class="font-bold">_________________________</div>
+            </div>
+            <div class="text-center">
+                <div class="mb-10">Mengetahui</div>
+                <div class="font-bold">_________________________</div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

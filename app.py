@@ -29,6 +29,7 @@ FITUR_STOCK_OPNAME = True
 def get_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA journal_mode=WAL;')
     return conn
 
 def check_db_migrations():
@@ -1095,9 +1096,9 @@ def ppic_master_delete(stiker_id):
 @app.route('/ppic/export-excel/gudang')
 @login_required(role_required='ppic')
 def ppic_export_excel_gudang():
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from openpyxl.drawing.image import Image as XLImage
+    from openpyxl import Workbook  # type: ignore[import-not-found]
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side  # type: ignore[import-not-found]
+    from openpyxl.drawing.image import Image as XLImage # type: ignore[import-not-found]
 
     conn = get_db()
     cursor = conn.cursor()
@@ -1217,8 +1218,8 @@ def ppic_export_excel_gudang():
 @app.route('/ppic/export-excel/produksi')
 @login_required(role_required='ppic')
 def ppic_export_excel_produksi():
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl import Workbook # type: ignore[import-not-found]
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side # type: ignore[import-not-found]
 
     conn = get_db()
     cursor = conn.cursor()

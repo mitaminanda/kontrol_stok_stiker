@@ -184,8 +184,17 @@
 
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Foto Stiker / Label Bongkaran</label>
-                            <input type="file" name="foto" accept="image/*"
-                                class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-300 rounded-xl p-1 bg-white">
+                            <div class="flex gap-2">
+                                <input type="file" name="foto" id="inputFoto" accept="image/*"
+                                    class="min-w-0 flex-1 w-full text-sm text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-300 rounded-xl p-1 bg-white">
+                                <button type="button" id="bukaKamera" title="Ambil foto dengan kamera"
+                                    class="shrink-0 inline-flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-semibold transition">
+                                    <i class="fa-solid fa-camera"></i><span class="hidden sm:inline">Kamera</span>
+                                </button>
+                            </div>
+                            <p id="statusFoto" class="text-[11px] text-slate-500 mt-1">Pilih file atau ambil foto langsung dari kamera.</p>
+                            <img id="previewFoto" src="" alt="Preview foto stiker"
+                                class="hidden mt-3 h-28 w-40 rounded-xl border border-slate-200 object-cover shadow-sm">
                         </div>
                     </div>
 
@@ -273,6 +282,24 @@
         </div>
     </main>
 
+    <!-- MODAL KAMERA -->
+    <div id="modalKamera" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden items-center justify-center p-4" onclick="tutupKamera()">
+        <div class="relative max-w-xl w-full bg-slate-900 rounded-2xl p-4 shadow-2xl border border-slate-800" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h2 class="text-sm font-bold text-white"><i class="fa-solid fa-camera mr-2 text-blue-400"></i>Ambil Foto Stiker</h2>
+                <button type="button" onclick="tutupKamera()" class="bg-rose-600 hover:bg-rose-700 text-white p-1.5 px-2.5 rounded-lg text-xs font-bold">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <video id="previewKamera" autoplay playsinline muted class="w-full aspect-video object-cover rounded-xl bg-black mt-3"></video>
+            <canvas id="canvasKamera" class="hidden"></canvas>
+            <p id="errorKamera" class="text-xs text-rose-400 mt-2 hidden"></p>
+            <button type="button" onclick="ambilFoto()" class="w-full mt-3 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition">
+                <i class="fa-solid fa-camera mr-2"></i>Ambil Foto
+            </button>
+        </div>
+    </div>
+
     <!-- MODAL ZOOM INTERAKTIF -->
     <div id="modalFoto" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="tutupModalFoto()">
         <div class="relative max-w-4xl w-full max-h-[92vh] bg-slate-900 rounded-2xl p-4 shadow-2xl flex flex-col border border-slate-800" onclick="event.stopPropagation()">
@@ -341,7 +368,85 @@
             });
         }
 
-        // 3. Logika Zoom & Drag/Pan Bebas
+        // 3. Kamera perangkat untuk mengambil foto langsung
+        const inputFoto = document.getElementById('inputFoto');
+        const bukaKameraButton = document.getElementById('bukaKamera');
+        const modalKamera = document.getElementById('modalKamera');
+        const previewKamera = document.getElementById('previewKamera');
+        const canvasKamera = document.getElementById('canvasKamera');
+        const statusFoto = document.getElementById('statusFoto');
+        const previewFoto = document.getElementById('previewFoto');
+        const errorKamera = document.getElementById('errorKamera');
+        let streamKamera = null;
+
+        bukaKameraButton.addEventListener('click', async function() {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                errorKamera.textContent = 'Kamera tidak tersedia. Gunakan HTTPS atau pilih file foto.';
+                errorKamera.classList.remove('hidden');
+                modalKamera.classList.remove('hidden');
+                modalKamera.classList.add('flex');
+                return;
+            }
+            try {
+                streamKamera = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' } }, audio: false
+                });
+                previewKamera.srcObject = streamKamera;
+                errorKamera.classList.add('hidden');
+                modalKamera.classList.remove('hidden');
+                modalKamera.classList.add('flex');
+            } catch (error) {
+                errorKamera.textContent = error.name === 'NotAllowedError'
+                    ? 'Izin kamera ditolak. Izinkan akses kamera, lalu coba lagi.'
+                    : 'Kamera tidak dapat dibuka. Pilih file foto sebagai alternatif.';
+                errorKamera.classList.remove('hidden');
+                modalKamera.classList.remove('hidden');
+                modalKamera.classList.add('flex');
+            }
+        });
+
+        function ambilFoto() {
+            if (!streamKamera) return;
+            canvasKamera.width = previewKamera.videoWidth;
+            canvasKamera.height = previewKamera.videoHeight;
+            canvasKamera.getContext('2d').drawImage(previewKamera, 0, 0);
+            canvasKamera.toBlob(function(blob) {
+                const file = new File([blob], `foto-stiker-${Date.now()}.jpg`, { type: 'image/jpeg' });
+                const transfer = new DataTransfer();
+                transfer.items.add(file);
+                inputFoto.files = transfer.files;
+                statusFoto.textContent = `Foto kamera siap: ${file.name}`;
+                tampilkanPreview(file);
+                tutupKamera();
+            }, 'image/jpeg', 0.9);
+        }
+
+        function tutupKamera() {
+            streamKamera?.getTracks().forEach(track => track.stop());
+            streamKamera = null;
+            previewKamera.srcObject = null;
+            modalKamera.classList.add('hidden');
+            modalKamera.classList.remove('flex');
+        }
+
+        function tampilkanPreview(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                previewFoto.src = '';
+                previewFoto.classList.add('hidden');
+                return;
+            }
+            previewFoto.src = URL.createObjectURL(file);
+            previewFoto.classList.remove('hidden');
+        }
+
+        inputFoto.addEventListener('change', function() {
+            if (inputFoto.files.length) {
+                statusFoto.textContent = `File dipilih: ${inputFoto.files[0].name}`;
+                tampilkanPreview(inputFoto.files[0]);
+            }
+        });
+
+        // 4. Logika Zoom & Drag/Pan Bebas
         let skalaZoom = 1, transX = 0, transY = 0, isDragging = false, startX = 0, startY = 0;
         const container = document.getElementById('zoomContainer');
         const imgZoom = document.getElementById('modalFotoImg');

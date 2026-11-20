@@ -1,0 +1,14 @@
+[Unit]
+Description=Gunicorn instance to serve Website Stok Stiker
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/website_stok_stiker
+Environment="PATH=/var/www/html/website_stok_stiker/.venv/bin"
+ExecStart=/var/www/html/website_stok_stiker/.venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8001 --timeout 120 app:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

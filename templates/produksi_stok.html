@@ -831,7 +831,7 @@
         }     
     </script>
 
-    <!-- ========================================== -->
+   <!-- ========================================== -->
     <!-- 4. MODAL INPUT STOCK OPNAME (SEMENTARA)    -->
     <!-- ========================================== -->
     <div id="modalStockOpname" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4 no-print">
@@ -851,7 +851,7 @@
             <form action="/produksi/stock-opname/submit" method="POST" enctype="multipart/form-data" class="mt-4 space-y-4">
                 <div class="relative">
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">
-                        Ketik Nama Produk atau SKU <span class="text-rose-500">*</span>
+                        Ketik Buyer, Nama Produk, atau SKU <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
@@ -859,7 +859,7 @@
                         </span>
                         <input type="text" id="opnameInputCariProduk" autocomplete="off"
                                oninput="filterSaranProdukOpname()" onclick="filterSaranProdukOpname()"
-                               placeholder="Ketik SKU atau nama produk... (contoh: 430526 / KOPIKO)"
+                               placeholder="Ketik Buyer, SKU, atau nama produk... (contoh: CHAMSINE / 329406)"
                                class="w-full pl-8 pr-8 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white">
                         <button type="button" id="btnResetProdukOpname" onclick="resetPilihanProdukOpname()"
                                 class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-rose-500"
@@ -868,30 +868,33 @@
                         </button>
                     </div>
                     <input type="hidden" name="sku" id="opnameHiddenSku" required>
+                    <input type="hidden" name="buyer" id="opnameHiddenBuyer">
+                    <input type="hidden" name="stiker_id" id="opnameHiddenStikerId">
 
                     <div id="opnameDropdownList"
                          class="hidden absolute z-30 w-full mt-1 max-h-52 overflow-y-auto bg-white border border-slate-300 rounded-xl shadow-xl divide-y divide-slate-100">
-                        {% set seen_sku = [] %}
+                        {% set seen_group = [] %}
                         {% for item in laporan %}
-                            {% if item.sku not in seen_sku %}
-                                {% set _ = seen_sku.append(item.sku) %}
+                            {% set group_key = (item.sku|string) ~ '||' ~ ((item.buyer or '-')|string) ~ '||' ~ (item.nama_produk|string) %}
+                            {% if group_key not in seen_group %}
+                                {% set _ = seen_group.append(group_key) %}
                                 <div class="opname-opsi-produk px-3.5 py-2.5 text-xs hover:bg-emerald-50 cursor-pointer transition flex items-center justify-between gap-2"
                                      data-sku="{{ item.sku }}"
-                                     data-buyer="{{ item.buyer }}"
+                                     data-buyer="{{ item.buyer or '-' }}"
                                      data-nama="{{ item.nama_produk }}"
-                                     data-search="{{ item.sku|lower }} {{ item.nama_produk|lower }}"
+                                     data-search="{{ (item.buyer or '')|lower }} {{ item.sku|lower }} {{ item.nama_produk|lower }}"
                                      onclick="pilihItemProdukOpname(this.dataset.sku, this.dataset.nama, this.dataset.buyer)">
                                     <div>
                                         <span class="font-mono font-bold text-emerald-700">{{ item.sku }}</span>
                                         <span class="text-slate-400 mx-1">—</span>
                                         <span class="font-bold text-slate-800">{{ item.nama_produk }}</span>
                                     </div>
-                                    <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">{{ item.buyer }}</span>
+                                    <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold whitespace-nowrap">{{ item.buyer or '-' }}</span>
                                 </div>
                             {% endif %}
                         {% endfor %}
                         <div id="opnameProdukKosong" class="hidden px-4 py-3 text-xs text-center text-slate-400 italic">
-                            Produk atau SKU tidak ditemukan.
+                            Buyer, produk, atau SKU tidak ditemukan.
                         </div>
                     </div>
                 </div>
@@ -912,7 +915,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jenis Stiker <span class="text-rose-500">*</span></label>
-                        <select id="opnameSelectJenis" name="jenis_stiker" required
+                        <select id="opnameSelectJenis" name="jenis_stiker" required onchange="sinkronStikerIdOpname()"
                                 class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-blue-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                             <option value="" disabled selected>Pilih Produk Dahulu...</option>
                         </select>
@@ -941,7 +944,20 @@
     </div>
 
     <script>
-       function bukaModalStockOpname() {
+        // Data master langsung dari tabel laporan agar sesuai per Buyer + SKU + Jenis Stiker
+        const MASTER_STIKER_OPNAME = [
+            {% for item in laporan %}
+            {
+                id: "{{ item.id }}",
+                sku: {{ item.sku|tojson }},
+                buyer: {{ (item.buyer or '-')|tojson }},
+                nama_produk: {{ item.nama_produk|tojson }},
+                jenis_stiker: {{ item.jenis_stiker|tojson }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        function bukaModalStockOpname() {
             resetPilihanProdukOpname();
             const modal = document.getElementById('modalStockOpname');
             if (modal) modal.classList.remove('hidden');
@@ -962,8 +978,9 @@
             btnReset.classList.toggle('hidden', keyword === '');
             dropdown.classList.remove('hidden');
 
-            // Reset SKU tersembunyi jika teks diubah manual sebelum klik pilihan
             document.getElementById('opnameHiddenSku').value = '';
+            document.getElementById('opnameHiddenBuyer').value = '';
+            document.getElementById('opnameHiddenStikerId').value = '';
 
             let jumlahCocok = 0;
             items.forEach(item => {
@@ -980,32 +997,48 @@
         }
 
         function pilihItemProdukOpname(sku, namaProduk, buyer) {
-            document.getElementById('opnameInputCariProduk').value = `${sku} — ${namaProduk}`;
+            document.getElementById('opnameInputCariProduk').value = `[${buyer}] ${sku} — ${namaProduk}`;
             document.getElementById('opnameHiddenSku').value = sku;
+            document.getElementById('opnameHiddenBuyer').value = buyer;
             document.getElementById('opnameBuyer').value = buyer || '-';
             document.getElementById('opnameSkuTampil').value = sku;
             document.getElementById('opnameDropdownList').classList.add('hidden');
             document.getElementById('btnResetProdukOpname').classList.remove('hidden');
 
             const jenisSelect = document.getElementById('opnameSelectJenis');
-            jenisSelect.innerHTML = '<option value="" disabled selected>Memuat jenis...</option>';
+            jenisSelect.innerHTML = '<option value="" disabled selected>-- Pilih Jenis Stiker --</option>';
 
-            fetch(`/api/produk/${encodeURIComponent(sku)}/stiker`)
-                .then(res => res.json())
-                .then(data => {
-                    jenisSelect.innerHTML = '<option value="" disabled selected>-- Pilih Jenis Stiker --</option>';
-                    data.forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = item.jenis_stiker;
-                        option.textContent = item.jenis_stiker;
-                        jenisSelect.appendChild(option);
-                    });
-                });
+            const cocok = MASTER_STIKER_OPNAME.filter(m =>
+                String(m.sku) === String(sku) &&
+                String(m.buyer) === String(buyer) &&
+                String(m.nama_produk) === String(namaProduk)
+            );
+
+            cocok.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.jenis_stiker;
+                option.dataset.stikerId = item.id;
+                option.textContent = item.jenis_stiker;
+                jenisSelect.appendChild(option);
+            });
+
+            if (cocok.length === 1) {
+                jenisSelect.selectedIndex = 1;
+                sinkronStikerIdOpname();
+            }
+        }
+
+        function sinkronStikerIdOpname() {
+            const jenisSelect = document.getElementById('opnameSelectJenis');
+            const selected = jenisSelect.options[jenisSelect.selectedIndex];
+            document.getElementById('opnameHiddenStikerId').value = selected ? (selected.dataset.stikerId || '') : '';
         }
 
         function resetPilihanProdukOpname() {
             document.getElementById('opnameInputCariProduk').value = '';
             document.getElementById('opnameHiddenSku').value = '';
+            document.getElementById('opnameHiddenBuyer').value = '';
+            document.getElementById('opnameHiddenStikerId').value = '';
             document.getElementById('opnameBuyer').value = '';
             document.getElementById('opnameSkuTampil').value = '';
             document.getElementById('opnameSelectJenis').innerHTML = '<option value="" disabled selected>Pilih Produk Dahulu...</option>';
@@ -1013,7 +1046,6 @@
             document.getElementById('opnameDropdownList').classList.add('hidden');
         }
 
-        // Tutup dropdown daftar produk jika klik di luar kotak pencarian
         document.addEventListener('click', function(e) {
             const inputCari = document.getElementById('opnameInputCariProduk');
             const dropdown = document.getElementById('opnameDropdownList');
@@ -1023,10 +1055,9 @@
         });
 
         function toggleSidebarMobile() {
-          document.getElementById('mobileSidebar').classList.toggle('-translate-x-full');
-          document.getElementById('sidebarBackdrop').classList.toggle('hidden');
-      }
-        
+            document.getElementById('mobileSidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebarBackdrop').classList.toggle('hidden');
+        }
     </script>
 </body>
 </html>

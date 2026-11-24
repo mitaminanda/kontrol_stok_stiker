@@ -753,11 +753,37 @@ def produksi_stok():
             mp.jenis_stiker,
             mp.no_sas_sap,
             COALESCE(mp.saldo_awal, 0) as saldo_awal,
-            COALESCE((SELECT SUM(p.jumlah_diminta) FROM permintaan_produksi p WHERE p.sku = mp.sku AND p.jenis_stiker = mp.jenis_stiker AND p.status IN ('Selesai', 'Close / Selesai')), 0) as diterima_produksi,
-            COALESCE((SELECT SUM(pm.total_digunakan) FROM pemakaian_stikers pm WHERE pm.sku = mp.sku AND pm.jenis_stiker = mp.jenis_stiker), 0) as total_dipakai,
+            COALESCE((
+                SELECT SUM(p.jumlah_diminta) 
+                FROM permintaan_produksi p 
+                WHERE p.sku = mp.sku 
+                  AND p.jenis_stiker = mp.jenis_stiker 
+                  AND (COALESCE(p.buyer, '') = '' OR UPPER(TRIM(p.buyer)) = UPPER(TRIM(COALESCE(mp.buyer, ''))))
+                  AND p.status IN ('Selesai', 'Close / Selesai')
+            ), 0) as diterima_produksi,
+            COALESCE((
+                SELECT SUM(pm.total_digunakan) 
+                FROM pemakaian_stikers pm 
+                WHERE pm.sku = mp.sku 
+                  AND pm.jenis_stiker = mp.jenis_stiker
+                  AND (COALESCE(pm.buyer, '') = '' OR UPPER(TRIM(pm.buyer)) = UPPER(TRIM(COALESCE(mp.buyer, ''))))
+            ), 0) as total_dipakai,
             (COALESCE(mp.saldo_awal, 0) +
-             COALESCE((SELECT SUM(p.jumlah_diminta) FROM permintaan_produksi p WHERE p.sku = mp.sku AND p.jenis_stiker = mp.jenis_stiker AND p.status IN ('Selesai', 'Close / Selesai')), 0) - 
-             COALESCE((SELECT SUM(pm.total_digunakan) FROM pemakaian_stikers pm WHERE pm.sku = mp.sku AND pm.jenis_stiker = mp.jenis_stiker), 0)) as sisa_di_produksi
+             COALESCE((
+                SELECT SUM(p.jumlah_diminta) 
+                FROM permintaan_produksi p 
+                WHERE p.sku = mp.sku 
+                  AND p.jenis_stiker = mp.jenis_stiker 
+                  AND (COALESCE(p.buyer, '') = '' OR UPPER(TRIM(p.buyer)) = UPPER(TRIM(COALESCE(mp.buyer, ''))))
+                  AND p.status IN ('Selesai', 'Close / Selesai')
+             ), 0) - 
+             COALESCE((
+                SELECT SUM(pm.total_digunakan) 
+                FROM pemakaian_stikers pm 
+                WHERE pm.sku = mp.sku 
+                  AND pm.jenis_stiker = mp.jenis_stiker
+                  AND (COALESCE(pm.buyer, '') = '' OR UPPER(TRIM(pm.buyer)) = UPPER(TRIM(COALESCE(mp.buyer, ''))))
+             ), 0)) as sisa_di_produksi
         FROM master_produk mp
         ORDER BY mp.buyer ASC, mp.nama_produk ASC
     ''').fetchall()
@@ -798,7 +824,9 @@ def produksi_stock_opname_submit():
         flash('Fitur input Stock Opname sudah dinonaktifkan.', 'warning')
         return redirect(url_for('produksi_stok'))
 
+    stiker_id = request.form.get('stiker_id', '').strip()
     sku = request.form.get('sku', '').strip()
+    buyer = request.form.get('buyer', '').strip().upper()
     jenis_stiker = request.form.get('jenis_stiker', '').strip().upper()
     jumlah_fisik = int(request.form.get('jumlah_fisik', 0))
     petugas = session.get('nama_lengkap', 'Operator Produksi')
@@ -807,15 +835,57 @@ def produksi_stock_opname_submit():
     conn = get_db()
     cursor = conn.cursor()
 
-    mp = cursor.execute(
-        'SELECT id, nama_produk FROM master_produk WHERE TRIM(sku) = ? AND UPPER(TRIM(jenis_stiker)) = ?',
-        (sku, jenis_stiker)
-    ).fetchone()
+    mp = None
+    if stiker_id and stiker_id.isdigit():
+        mp = cursor.execute(
+            'SELECT id, buyer, nama_produk FROM master_produk WHERE id = ?',
+            (int(stiker_id),)
+        ).fetchone()
+
+    if not mp and buyer and buyer != '-':
+        mp = cursor.execute(
+            'SELECT id, buyer, nama_produk FROM master_produk WHERE UPPER(TRIM(buyer)) = ? AND TRIM(sku) = ? AND UPPER(TRIM(jenis_stiker)) = ?',
+            (buyer, sku, jenis_stiker)
+        ).fetchone()
+
+    if not mp:
+        mp = cursor.execute(
+            'SELECT id, buyer, nama_produk FROM master_produk WHERE TRIM(sku) = ? AND UPPER(TRIM(jenis_stiker)) = ?',
+            (sku, jenis_stiker)
+        ).fetchone()
 
     if not mp:
         conn.close()
-        flash('Data produk dan jenis stiker tidak ditemukan di master produk!', 'danger')
+        flash('Data produk, buyer, dan jenis stiker tidak ditemukan di master produk!', 'danger')
         return redirect(url_for('produksi_stok'))
+
+    master_id = mp['id']
+    buyer_terpilih = mp['buyer'] or '-'
+
+    # Simpan saldo opname ke saldo_awal beserta waktu & petugas input
+    cursor.execute('''
+        UPDATE master_produk 
+        SET saldo_awal = ?, waktu_saldo_awal = ?, petugas_saldo_awal = ?
+        WHERE id = ?
+    ''', (max(0, jumlah_fisik), waktu_opname, petugas, master_id))
+
+    # Jika mengunggah foto stiker sekalian saat Stock Opname
+    file = request.files.get('foto')
+    if file and file.filename != '':
+        allowed_ext = {'png', 'jpg', 'jpeg', 'webp'}
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if ext in allowed_ext:
+            nama_file = f"prod_stiker_{master_id}_{int(datetime.now().timestamp())}.{ext}"
+            file.save(os.path.join(UPLOAD_PRODUKSI_FOLDER, nama_file))
+            cursor.execute('''
+                INSERT INTO foto_stiker_produksi_list (master_id, nama_file, keterangan, waktu_upload)
+                VALUES (?, ?, ?, ?)
+            ''', (master_id, nama_file, 'Stock Opname Produksi', datetime.now().strftime('%Y-%m-%d %H:%M')))
+
+    conn.commit()
+    conn.close()
+    flash(f'Hasil Stock Opname [{buyer_terpilih}] {mp["nama_produk"]} ({jenis_stiker}) sebanyak {jumlah_fisik:,} PCS berhasil disimpan.', 'success')
+    return redirect(url_for('produksi_stok'))
 
     master_id = mp['id']
 
